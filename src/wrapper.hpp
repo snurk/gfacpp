@@ -1,0 +1,314 @@
+#include <memory>
+#include "gfa.h"
+
+namespace gfa {
+
+enum class Direction {
+    FORWARD, REVERSE;
+}
+
+inline Direction Swap(Direction d) {
+    return d == Direction::FORWARD ? Direction::REVERSE : Direction::FORWARD;
+}
+
+struct DirectedSegment {
+    uint32_t segment_id;
+    Direction direction;
+
+    DirectedSegment(uint32_t segment_id_, Direction direction_) : segment_id(segment_id_), direction(direction_) { }
+
+    DirectedSegment() : segment_id(-1ul), direction(Direction::FORWARD) { }
+
+    static DirectedSegment FromInnerVertexT(uint32_t v) {
+        return DirectedSegment(v >> 1, (v & 1) == 0 ? Direction::FORWARD : Direction::REVERSE);
+    }
+
+    uint32_t AsInnerVertexT() const {
+        //TODO simplify?
+        return segment_id << 1 | (direction == Direction::FORWARD ? 0 : 1);
+    }
+
+    DirectedSegment Complement() const {
+        return DirectedSegment(segment_id, Swap(direction));
+    }
+
+};
+
+//typedef struct {
+//	uint32_t m_aux, l_aux;
+//	uint8_t *aux;
+//} gfa_aux_t;
+//
+//typedef struct {
+//	uint32_t start, end; // start: starting vertex in the string graph; end: ending vertex
+//	uint32_t len2, dummy; // len_r: the other length of the unitig
+//	uint32_t m, n; // number of reads
+//	uint64_t *a; // list of reads
+//	char **name;
+//} gfa_utg_t;
+//
+//typedef struct {
+//	int32_t len;
+//	uint32_t del:16, circ:16;
+//	int32_t snid; // stable name ID
+//	int32_t soff; // stable start position
+//	int32_t rank; // stable rank
+//	char *name, *seq;
+//	gfa_utg_t *utg;
+//	gfa_aux_t aux;
+//} gfa_seg_t;
+//
+//typedef struct {
+//	int32_t len, snid, soff, rank;
+//	uint64_t end[2];
+//	char *seq;
+//} gfa_sfa_t;
+//
+//typedef struct {
+//	char *name;
+//	int32_t min, max, rank;
+//} gfa_sseq_t;
+//
+//#define gfa_n_vtx(g) ((g)->n_seg << 1)
+//
+//typedef struct {
+//	// segments
+//	uint32_t m_seg, n_seg, max_rank;
+//	gfa_seg_t *seg;
+//	void *h_names;
+//	// persistent names
+//	uint32_t m_sseq, n_sseq;
+//	gfa_sseq_t *sseq;
+//	void *h_snames;
+//	// links
+//	uint64_t m_arc, n_arc:62, is_srt:1, is_symm:1;
+//	gfa_arc_t *arc;
+//	gfa_aux_t *link_aux;
+//	uint64_t *idx;
+//} gfa_t;
+
+//FIXME consider making a wrapper over original type rather than copying fields
+struct SegmentInfo {
+    //std::string sequence;
+    char* sequence;
+    //FIXME what about long segments?
+    uint32_t length;
+    char* name;
+
+    static FromInnerSegT(gfa_seg_t &s) {
+        return SegmentInfo(s);
+    }
+
+//        gfa_seg_t *seg = gfa_->seg + i;
+//        uint8_t *kc = gfa_aux_get(seg->aux.l_aux, seg->aux.aux, "KC");
+//        unsigned cov = 0;
+//        if (kc && kc[0] == 'i')
+//            cov = *(int32_t*)(kc+1);
+
+private:
+
+    SegmentInfo(const gfa_seg_t &s) :
+        sequence(s.seq),
+        length(s.len),
+        name(s.name) {}
+};
+
+//TODO upgrade iterators
+class SegmentIterator {
+    gfa_seg_t *seg_ptr_;
+
+public:
+    explicit SegmentIterator(gfa_seg_t *seg_ptr) :
+        arc_ptr_(arc_ptr) {}
+
+    SegmentIterator& operator++() {
+        ++seg_ptr_;
+        return *this;
+    }
+
+    SegmentIterator operator++(int) {
+        auto retval = *this;
+        ++(*this);
+        return retval;
+    }
+
+    bool operator==(iterator other) const {
+        return seg_ptr_ == other.seg_ptr_;
+    }
+
+    bool operator!=(iterator other) const {
+        return !(*this == other);
+    }
+
+    SegmentInfo operator*() const {
+        return SegmentInfo::FromInnerSegT(*seg_ptr_);
+    }
+
+    // iterator traits
+    using difference_type = ptrdiff_t;
+    using value_type = SegmentInfo;
+    using pointer = const SegmentInfo*;
+    using reference = const SegmentInfo&;
+    using iterator_category = std::forward_iterator_tag;
+};
+
+struct LinkInfo {
+    DirectedSegment start;
+    DirectedSegment end;
+    //TODO make private?
+    //can not take conjugate without the graph
+    //uint32_t length; //??? len(start) - start_overlap
+    int32_t start_overlap;
+    int32_t end_overlap;
+    uint64_t id; // link_id: a pair of dual arcs are supposed to have the same link_id
+    bool removed;
+    bool complement;
+
+    LinkInfo(): start(-1ul), end(-1ul), length(0),
+        start_overlap(0), end_overlap(0),
+        id(-1ull), removed(false), complement(false) {}
+
+    static LinkInfo FromInnerArcT(const gfa_arc_t &a) {
+        return LinkInfo(a);
+    }
+
+    LinkInfo Complement() const {
+        LinkInfo answer(*this);
+        std::swap(start, end);
+        std::swap(start_overlap, end_overlap);
+        answer.complement = !complement;
+        return answer;
+    }
+
+private:
+
+    LinkInfo(const gfa_arc_t &a) :
+        start(DirectedSegment::FromInnerVertexT(a.v_lv >> 32)),
+        end(DirectedSegment::FromInnerVertexT(a.w)),
+        length(a.v_lv), start_overlap(a.ov), end_overlap(a.ow),
+        id(a.link_id), removed(a.del), complement(a.comp) {}
+};
+
+class LinkIterator {
+    gfa_arc_t *arc_ptr_;
+    bool complement_;
+
+public:
+    explicit LinkIterator(gfa_arc_t *arc_ptr, bool complement = false) :
+        arc_ptr_(arc_ptr), complement_(complement) {}
+
+    LinkIterator& operator++() {
+        ++arc_ptr_;
+        return *this;
+    }
+
+    LinkIterator operator++(int) {
+        auto retval = *this;
+        ++(*this);
+        return retval;
+    }
+
+    bool operator==(iterator other) const {
+        return arc_ptr_ == other.arc_ptr_;
+    }
+
+    bool operator!=(iterator other) const {
+        return !(*this == other);
+    }
+
+    LinkInfo operator*() const {
+        return complement ? LinkInfo::FromInnerArcT(*arc_ptr_).Complement() : LinkInfo::FromInnerArcT(*arc_ptr_);
+    }
+
+    // iterator traits
+    using difference_type = ptrdiff_t;
+    using value_type = LinkInfo;
+    using pointer = const LinkInfo*;
+    using reference = const LinkInfo&;
+    using iterator_category = std::forward_iterator_tag;
+};
+
+template<class It>
+class LinkProxyContainer {
+    It begin_;
+    It end_;
+public:
+    LinkProxyContainer(It begin, It end): start_(start), end_(end) {}
+
+    It begin() const {
+        return begin_;
+    }
+
+    It end() const {
+        return end_;
+    }
+};
+
+class Graph {
+    std::unique_ptr<gfa_t, void(*)(gfa_t*)> g_ptr_;
+
+public:
+    Graph(): g_ptr_(nullptr, gfa_destroy) {}
+
+    Graph(const std::string &filename)
+        : g_ptr_(gfa_read(filename.c_str()), gfa_destroy) {}
+
+    gfa_t *get() const { return g_ptr_.get(); }
+
+    uint32_t segment_cnt() const { return g_ptr_->n_seg; }
+    uint64_t link_cnt() const { return g_ptr_->n_arc; }
+
+    int32_t id(const std::string &name) const {
+        return gfa_name2id(get(), name.c_str());
+    }
+
+    bool open(const std::string &filename) {
+        g_ptr_.reset(gfa_read(filename.c_str()));
+        return (bool)gfa_;
+    }
+
+    bool valid() const { return bool(g_ptr_); }
+    gfa_t *get() const { return gfa_.get(); }
+
+    void DeleteSegment(uint32_t segment_id) { gfa_seg_del(get(), segment_id); }
+
+    void Cleanup() { gfa_cleanup(get()); }
+
+    void DeleteLink(DirectedSegment v, DirectedSegment w) {
+        gfa_arc_del(get(), v.gfa_v(), w.gfa_v(), true);
+    }
+
+    LinkProxyContainer<LinkIterator> outgoing_links(DirectedSegment v) const {
+        return LinkProxyContainer<LinkIterator>(outgoing_begin(v), outgoing_end(v));
+    }
+
+    LinkIterator outgoing_begin(DirectedSegment v) const {
+        return LinkIterator(gfa_arc_a(get(), v.AsInnerVertexT()));
+    }
+
+    OutgoingLinkIterator outgoing_end(DirectedSegment v) const {
+        return LinkIterator(gfa_arc_a(get(), v.AsInnerVertexT()) + gfa_arc_n(get(), v.AsInnerVertexT()));
+    }
+
+    LinkProxyContainer<LinkIterator> incoming_links(DirectedSegment v) const {
+        return LinkProxyContainer<LinkIterator>(incoming_begin(v), incoming_end(v));
+    }
+
+    LinkIterator incoming_begin(DirectedSegment v) const {
+        return LinkIterator(gfa_arc_a(get(), v.Complement().AsInnerVertexT()), /*complement*/true);
+    }
+
+    OutgoingLinkIterator incoming_end(DirectedSegment v) const {
+        auto inner_v = v.Complement().AsInnerVertexT();
+        return LinkIterator(gfa_arc_a(get(), inner_v) + gfa_arc_n(get(), inner_v), /*complement*/true);
+    }
+
+    SegmentIterator begin() const {
+        return SegmentIterator(get()->seg);
+    }
+
+    SegmentIterator end() const {
+        return SegmentIterator(get()->seg + get()->n_seg);
+    }
+
+}
