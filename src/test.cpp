@@ -1,5 +1,6 @@
 #include "wrapper.hpp"
 
+#include <iostream>
 #include <vector>
 #include <set>
 #include <cassert>

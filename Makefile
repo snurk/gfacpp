@@ -1,5 +1,6 @@
 CXX:=g++
 CXXFLAGS:=-I./src -I./gfatools -O3 -std=c++14
+LIBS=-lz
 
 all: test
 
@@ -11,7 +12,7 @@ test.o:src/test.cpp src/wrapper.hpp
 	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 test:test.o libgfa1.a
-	+$(CXX) -o $@ $^
+	+$(CXX) $^ -o $@ $(LIBS)
 
 .PHONY: clean
 

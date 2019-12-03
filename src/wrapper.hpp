@@ -1,6 +1,6 @@
 #pragma once
 
-//#include <memory>
+#include <memory>
 #include <string>
 #include "gfa.h"
 
@@ -316,3 +316,4 @@ public:
     }
 
 };
+}
