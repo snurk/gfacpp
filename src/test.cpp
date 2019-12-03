@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     const std::string in_fn(argv[1]);
 
     gfa::Graph g;
-    std::cout << "Loading graph from GFA file " << in_fn;
+    std::cout << "Loading graph from GFA file " << in_fn << std::endl;
     g.open(in_fn);
     std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << std::endl;
 }
