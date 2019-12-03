@@ -1,3 +1,3 @@
 [submodule "gfatools"]
 	path = gfatools
-	url = https://github.com/lh3/gfatools/
+	url = git@github.com:lh3/gfatools.git
