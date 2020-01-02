@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include "gfa.h"
+#include "gfa-priv.h"
 
 namespace gfa {
 
@@ -12,6 +13,10 @@ enum class Direction {
 
 inline Direction Swap(Direction d) {
     return d == Direction::FORWARD ? Direction::REVERSE : Direction::FORWARD;
+}
+
+std::string PrintDirection(Direction d) {
+    return d == Direction::FORWARD ? "forward" : "reverse";
 }
 
 struct DirectedSegment {
@@ -99,6 +104,7 @@ struct SegmentInfo {
     //FIXME what about long segments?
     uint32_t length;
     char* name;
+    bool removed;
 
     static SegmentInfo FromInnerSegT(gfa_seg_t &s) {
         return SegmentInfo(s);
@@ -115,7 +121,8 @@ private:
     explicit SegmentInfo(gfa_seg_t &s) :
         sequence(s.seq),
         length(s.len),
-        name(s.name) {}
+        name(s.name),
+        removed(s.del) {}
 };
 
 //TODO upgrade iterators
@@ -154,6 +161,44 @@ public:
     using value_type = SegmentInfo;
     using pointer = const SegmentInfo*;
     using reference = const SegmentInfo&;
+    using iterator_category = std::forward_iterator_tag;
+};
+
+class DirectedSegmentIterator {
+    uint32_t inner_v_;
+
+public:
+    explicit DirectedSegmentIterator(uint32_t inner_v) :
+        inner_v_(inner_v) {}
+
+    DirectedSegmentIterator& operator++() {
+        ++inner_v_;
+        return *this;
+    }
+
+    DirectedSegmentIterator operator++(int) {
+        auto retval = *this;
+        ++inner_v_;
+        return retval;
+    }
+
+    bool operator==(DirectedSegmentIterator other) const {
+        return inner_v_ == other.inner_v_;
+    }
+
+    bool operator!=(DirectedSegmentIterator other) const {
+        return !(*this == other);
+    }
+
+    DirectedSegment operator*() const {
+        return DirectedSegment::FromInnerVertexT(inner_v_);
+    }
+
+    // iterator traits
+    using difference_type = uint32_t;
+    using value_type = DirectedSegment;
+    using pointer = const DirectedSegment*;
+    using reference = const DirectedSegment&;
     using iterator_category = std::forward_iterator_tag;
 };
 
@@ -234,11 +279,11 @@ public:
 };
 
 template<class It>
-class LinkProxyContainer {
+class ProxyContainer {
     It begin_;
     It end_;
 public:
-    LinkProxyContainer(It begin, It end): begin_(begin), end_(end) {}
+    ProxyContainer(It begin, It end): begin_(begin), end_(end) {}
 
     It begin() const {
         return begin_;
@@ -272,18 +317,36 @@ public:
         return (bool)g_ptr_;
     }
 
+    void write(const std::string &filename) const {
+        FILE *f = fopen(filename.c_str(), "w");
+        gfa_print(get(), f, 0);
+        fclose(f);
+    }
+
     bool valid() const { return bool(g_ptr_); }
 
     void DeleteSegment(uint32_t segment_id) { gfa_seg_del(get(), segment_id); }
 
-    //void Cleanup() { gfa_cleanup(get()); }
-
-    void DeleteLink(DirectedSegment v, DirectedSegment w) {
-        gfa_arc_del(get(), v.AsInnerVertexT(), w.AsInnerVertexT(), true);
+    void Cleanup() {
+        gfa_cleanup(get());
+        gfa_fix_symm_del(get());
     }
 
-    LinkProxyContainer<LinkIterator> outgoing_links(DirectedSegment v) const {
-        return LinkProxyContainer<LinkIterator>(outgoing_begin(v), outgoing_end(v));
+    //FIXME make faster by including a pointer to an arc into LinkInfo instead of copying
+    void DeleteLink(LinkInfo l) {
+        DeleteLink(l.start, l.end);
+    }
+
+    void DeleteLink(DirectedSegment v, DirectedSegment w) {
+        gfa_arc_del(get(), v.AsInnerVertexT(), w.AsInnerVertexT(), 1);
+    }
+
+    uint32_t outgoing_link_cnt(DirectedSegment v) const {
+        return gfa_arc_n(get(), v.AsInnerVertexT());
+    }
+
+    ProxyContainer<LinkIterator> outgoing_links(DirectedSegment v) const {
+        return ProxyContainer<LinkIterator>(outgoing_begin(v), outgoing_end(v));
     }
 
     LinkIterator outgoing_begin(DirectedSegment v) const {
@@ -294,8 +357,8 @@ public:
         return LinkIterator(gfa_arc_a(get(), v.AsInnerVertexT()) + gfa_arc_n(get(), v.AsInnerVertexT()));
     }
 
-    LinkProxyContainer<LinkIterator> incoming_links(DirectedSegment v) const {
-        return LinkProxyContainer<LinkIterator>(incoming_begin(v), incoming_end(v));
+    ProxyContainer<LinkIterator> incoming_links(DirectedSegment v) const {
+        return ProxyContainer<LinkIterator>(incoming_begin(v), incoming_end(v));
     }
 
     LinkIterator incoming_begin(DirectedSegment v) const {
@@ -307,12 +370,33 @@ public:
         return LinkIterator(gfa_arc_a(get(), inner_v) + gfa_arc_n(get(), inner_v), /*complement*/true);
     }
 
-    SegmentIterator begin() const {
+    SegmentInfo segment(uint32_t segment_id) const {
+        assert(segment_id < segment_cnt());
+        return SegmentInfo::FromInnerSegT(get()->seg[segment_id]);
+    }
+
+    SegmentIterator segment_begin() const {
         return SegmentIterator(get()->seg);
     }
 
-    SegmentIterator end() const {
-        return SegmentIterator(get()->seg + get()->n_seg);
+    SegmentIterator segment_end() const {
+        return SegmentIterator(get()->seg + segment_cnt());
+    }
+
+    ProxyContainer<SegmentIterator> segments() const {
+        return ProxyContainer<SegmentIterator>(segment_begin(), segment_end());
+    }
+
+    DirectedSegmentIterator directed_segment_begin() const {
+        return DirectedSegmentIterator(0);
+    }
+
+    DirectedSegmentIterator directed_segment_end() const {
+        return DirectedSegmentIterator(gfa_n_vtx(get()));
+    }
+
+    ProxyContainer<DirectedSegmentIterator> directed_segments() const {
+        return ProxyContainer<DirectedSegmentIterator>(directed_segment_begin(), directed_segment_end());
     }
 
 };
