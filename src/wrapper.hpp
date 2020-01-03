@@ -1,9 +1,11 @@
 #pragma once
 
-#include <memory>
-#include <string>
 #include "gfa.h"
 #include "gfa-priv.h"
+
+#include <memory>
+#include <string>
+#include <cassert>
 
 namespace gfa {
 
