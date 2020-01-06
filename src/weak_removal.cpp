@@ -22,18 +22,34 @@ int main(int argc, char *argv[]) {
 
     size_t ndel = 0;
     for (gfa::DirectedSegment ds : g.directed_segments()) {
-        if (g.outgoing_link_cnt(ds) > 1) {
-            for (gfa::LinkInfo l : g.outgoing_links(ds)) {
-                if (std::max(l.start_overlap, l.end_overlap) < min_overlap) {
-                    std::cout << "Removing link between " <<
-                        g.segment(l.start.segment_id).name << " (" << gfa::PrintDirection(l.start.direction) << ") and " <<
-                        g.segment(l.end.segment_id).name << " (" << gfa::PrintDirection(l.end.direction) << "). Overlaps " <<
-                        l.start_overlap << " and " << l.end_overlap << std::endl;
-                    //TODO optimize?
-                    g.DeleteLink(l);
-                    ndel++;
-                }
-            }
+        //std::cerr << "Considering directed segment " << g.segment(ds.segment_id).name << " " << gfa::PrintDirection(ds.direction) << std::endl;
+
+        uint32_t max_ovl = 0;
+        for (gfa::LinkInfo l : g.outgoing_links(ds)) {
+            //std::cerr << "Considering link between " <<
+            //    g.segment(l.start.segment_id).name << " (" << gfa::PrintDirection(l.start.direction) << ") and " <<
+            //    g.segment(l.end.segment_id).name << " (" << gfa::PrintDirection(l.end.direction) << "). Overlaps " <<
+            //    l.start_overlap << " and " << l.end_overlap << std::endl;
+            //std::cerr << "Use overlap " << ovl << std::endl;
+            auto ovl = std::max(l.start_overlap, l.end_overlap);
+            if (ovl > max_ovl)
+                max_ovl = ovl;
+        }
+
+        for (gfa::LinkInfo l : g.outgoing_links(ds)) {
+            auto ovl = std::max(l.start_overlap, l.end_overlap);
+            if (ovl >= min_overlap)
+                continue;
+            if (max_ovl < min_overlap && ovl == max_ovl)
+                continue;
+
+            std::cout << "Removing link between " <<
+                g.segment(l.start.segment_id).name << " (" << gfa::PrintDirection(l.start.direction) << ") and " <<
+                g.segment(l.end.segment_id).name << " (" << gfa::PrintDirection(l.end.direction) << "). Overlaps " <<
+                l.start_overlap << " and " << l.end_overlap << std::endl;
+            //TODO optimize?
+            g.DeleteLink(l);
+            ndel++;
         }
     }
     std::cout << "Total of " << ndel << " links removed" << std::endl;
