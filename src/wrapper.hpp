@@ -321,6 +321,7 @@ public:
 
     void write(const std::string &filename) const {
         FILE *f = fopen(filename.c_str(), "w");
+        fprintf(f, "H\tVN:Z:1.0\n");
         gfa_print(get(), f, 0);
         fclose(f);
     }
