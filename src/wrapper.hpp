@@ -44,6 +44,9 @@ struct DirectedSegment {
         return DirectedSegment(segment_id, Swap(direction));
     }
 
+    bool operator==(const DirectedSegment &rhs) {
+        return segment_id == rhs.segment_id && direction == rhs.direction;
+    }
 };
 
 //typedef struct {
