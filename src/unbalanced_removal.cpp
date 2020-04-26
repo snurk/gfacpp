@@ -17,6 +17,8 @@ auto ReadCoverage(std::string fn) {
 
     while (is >> seg_name >> cov) {
         segment_coverage[seg_name] = cov;
+
+        //std::cout << "Populating coverage with " << seg_name << " and " << cov << std::endl;
     }
 
     return segment_coverage;
@@ -32,9 +34,10 @@ int main(int argc, char *argv[]) {
 
     const std::string in_fn(argv[1]);
     const std::string out_fn(argv[2]);
-    const std::string coverage_fn(argv[2]);
+    const std::string coverage_fn(argv[3]);
     const double coverage_ratio = std::stod(argv[4]);
 
+    std::cout << "Reading coverage from " << coverage_fn << std::endl;
     const auto segment_cov = ReadCoverage(coverage_fn);
 
     gfa::Graph g;
@@ -44,7 +47,7 @@ int main(int argc, char *argv[]) {
 
     size_t ndel = 0;
     for (gfa::DirectedSegment ds : g.directed_segments()) {
-        //std::cerr << "Considering directed segment " << g.segment(ds.segment_id).name << " " << gfa::PrintDirection(ds.direction) << std::endl;
+        //std::cout << "Considering directed segment " << g.segment(ds.segment_id).name << " " << gfa::PrintDirection(ds.direction) << std::endl;
 
         uint32_t max_onb_cov = 0;
         for (gfa::LinkInfo l : g.outgoing_links(ds)) {
@@ -53,7 +56,10 @@ int main(int argc, char *argv[]) {
             //    g.segment(l.end.segment_id).name << " (" << gfa::PrintDirection(l.end.direction) << "). Overlaps " <<
             //    l.start_overlap << " and " << l.end_overlap << std::endl;
             //std::cerr << "Use overlap " << ovl << std::endl;
+            //std::cout << "Checking name " << g.segment(l.end.segment_id).name << std::endl;
             assert(l.start == ds);
+            assert(segment_cov.find(g.segment(l.end.segment_id).name) != segment_cov.end());
+
             auto nb_cov = segment_cov.find(g.segment(l.end.segment_id).name)->second;
             if (nb_cov > max_onb_cov)
                 max_onb_cov = nb_cov;
@@ -69,10 +75,10 @@ int main(int argc, char *argv[]) {
             if (nb_cov == max_onb_cov)
                 continue;
 
-            std::cout << "Removing link between " <<
-                g.segment(l.start.segment_id).name << " (" << gfa::PrintDirection(l.start.direction) << ") and " <<
-                g.segment(l.end.segment_id).name << " (" << gfa::PrintDirection(l.end.direction) << "). Overlaps " <<
-                l.start_overlap << " and " << l.end_overlap << std::endl;
+            //std::cout << "Removing link between " <<
+            //    g.segment(l.start.segment_id).name << " (" << gfa::PrintDirection(l.start.direction) << ") and " <<
+            //    g.segment(l.end.segment_id).name << " (" << gfa::PrintDirection(l.end.direction) << "). Overlaps " <<
+            //    l.start_overlap << " and " << l.end_overlap << std::endl;
             //TODO optimize?
             g.DeleteLink(l);
             ndel++;
@@ -86,4 +92,3 @@ int main(int argc, char *argv[]) {
     std::cout << "Writing output to " << out_fn << std::endl;
     g.write(out_fn);
 }
-
