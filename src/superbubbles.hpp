@@ -189,10 +189,15 @@ public:
                     break;
             }
 
+            if (superbubble_vertices_.count(v.Complement()) > 0) {
+                DEBUG("Reverse-complement vertex " << g_.str(v.Complement()) << " already part of the bubble");
+                break;
+            }
+
             DEBUG("Adding vertex " << g_.str(v) << " to dominated set");
             superbubble_vertices_[v] = std::make_pair(max_w, r);
             heaviest_backtrace_[v] = best_entrance;
-            DEBUG("Backtrace " << g_.str(best_entrance));
+            DEBUG("Optimal path to " << g_.str(v) << " comes from " << g_.str(best_entrance.start) << " with weight " << max_w);
             border.erase(v);
             if (is_end) {
                 //FIXME it seems like only start_pos is ever checked
