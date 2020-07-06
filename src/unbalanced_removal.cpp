@@ -1,28 +1,11 @@
 #include "wrapper.hpp"
+#include "utils.hpp"
 
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <set>
-#include <unordered_map>
 #include <cmath>
 #include <cassert>
-
-auto ReadCoverage(std::string fn) {
-    std::unordered_map<std::string, uint32_t> segment_coverage;
-    std::string seg_name;
-    uint32_t cov;
-
-    std::ifstream is(fn);
-
-    while (is >> seg_name >> cov) {
-        segment_coverage[seg_name] = cov;
-
-        //std::cout << "Populating coverage with " << seg_name << " and " << cov << std::endl;
-    }
-
-    return segment_coverage;
-}
 
 //TODO consider making iterative right here after I can compress and track reads here
 //TODO put coverage into GFA (check support in parcer, etc)
@@ -38,7 +21,7 @@ int main(int argc, char *argv[]) {
     const double coverage_ratio = std::stod(argv[4]);
 
     std::cout << "Reading coverage from " << coverage_fn << std::endl;
-    const auto segment_cov = ReadCoverage(coverage_fn);
+    const auto segment_cov = utils::ReadCoverage(coverage_fn);
 
     gfa::Graph g;
     std::cout << "Loading graph from GFA file " << in_fn << std::endl;
@@ -58,17 +41,17 @@ int main(int argc, char *argv[]) {
             //std::cerr << "Use overlap " << ovl << std::endl;
             //std::cout << "Checking name " << g.segment(l.end.segment_id).name << std::endl;
             assert(l.start == ds);
-            assert(segment_cov.find(g.segment(l.end.segment_id).name) != segment_cov.end());
+            assert(segment_cov.find(g.segment_name(l.end)) != segment_cov.end());
 
-            auto nb_cov = segment_cov.find(g.segment(l.end.segment_id).name)->second;
+            auto nb_cov = segment_cov.find(g.segment_name(l.end))->second;
             if (nb_cov > max_onb_cov)
                 max_onb_cov = nb_cov;
         }
 
-        uint32_t baseline_cov = segment_cov.find(g.segment(ds.segment_id).name)->second;
+        uint32_t baseline_cov = segment_cov.find(g.segment_name(ds))->second;
 
         for (gfa::LinkInfo l : g.outgoing_links(ds)) {
-            auto nb_cov = segment_cov.find(g.segment(l.end.segment_id).name)->second;
+            auto nb_cov = segment_cov.find(g.segment_name(l.end))->second;
             if (nb_cov > uint32_t(std::floor(coverage_ratio * baseline_cov)))
                 continue;
 
