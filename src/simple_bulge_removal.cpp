@@ -84,7 +84,7 @@ inline bool FormsSimpleBubble(const gfa::Graph &g, gfa::DirectedSegment n,
 
     for (auto l : g.incoming_links(w)) {
         auto w1 = l.start;
-        if (w1 == n || w1 == v)
+        if (w1 == n || w1 == v || w1 == n.Complement())
             continue;
         auto alt_p = UnambiguousBackwardPath(g, w1, v);
         if (!alt_p.empty()) {
