@@ -64,6 +64,15 @@ T abs_diff(T a, T b) {
     return (a > b) ? a-b : b-a;
 }
 
+inline bool CheckNotInPath(const gfa::Path &p, gfa::DirectedSegment n) {
+    for (const auto &v : p.segments) {
+        if (v == n || v == n.Complement()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 inline bool FormsSimpleBubble(const gfa::Graph &g, gfa::DirectedSegment n,
                               uint32_t max_length, uint32_t max_diff,
                               uint32_t min_alt_overlap,
@@ -76,6 +85,11 @@ inline bool FormsSimpleBubble(const gfa::Graph &g, gfa::DirectedSegment n,
     gfa::DirectedSegment v = p.segments.front();
     gfa::DirectedSegment w = p.segments.back();
 
+    if (v == n || v == n.Complement() || w == n || w == n.Complement()) {
+        DEBUG("Unambiguously links to self or complement");
+        return false;
+    }
+
     if (total_len > max_length
             + g.segment_length(v) + g.segment_length(w)) {
         DEBUG("Base path too long (" << (total_len - g.segment_length(v) - g.segment_length(w)) << "bp of 'internal' bases)");
@@ -87,6 +101,10 @@ inline bool FormsSimpleBubble(const gfa::Graph &g, gfa::DirectedSegment n,
         if (w1 == n || w1 == v || w1 == n.Complement())
             continue;
         auto alt_p = UnambiguousBackwardPath(g, w1, v);
+        if (!CheckNotInPath(alt_p, n)) {
+            DEBUG("Alternative path hit 'base' node");
+            continue;
+        }
         if (!alt_p.empty()) {
             alt_p.Extend(l);
             DEBUG("Found suitable 'backward' path " << g.str(alt_p));
