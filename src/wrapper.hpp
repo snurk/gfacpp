@@ -488,12 +488,12 @@ public:
         return segment(v.segment_id);
     }
 
-    const char* segment_name(uint32_t segment_id) const {
+    std::string segment_name(uint32_t segment_id) const {
         assert(segment_id < segment_cnt());
         return get()->seg[segment_id].name;
     }
 
-    const char* segment_name(DirectedSegment v) const {
+    std::string segment_name(DirectedSegment v) const {
         return segment_name(v.segment_id);
     }
 
