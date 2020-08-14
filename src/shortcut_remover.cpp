@@ -10,10 +10,18 @@ inline bool UnambiguousBackwardPath(const gfa::Graph &g, gfa::DirectedSegment w,
                                     const std::unordered_map<std::string, uint32_t> &segment_cov,
                                     uint32_t min_path_coverage) {
     assert(w != v);
+    std::set<gfa::LinkInfo> used_links;
     while (g.unique_incoming(w)
             && utils::get(segment_cov, g.segment_name(w)) >= min_path_coverage
             && w != v) {
-        w = (*g.incoming_begin(w)).start;
+        auto l = *g.incoming_begin(w);
+        if (used_links.count(l)) {
+            DEBUG("Loop detected");
+            return false;
+        }
+        //w = (*g.incoming_begin(w)).start;
+        used_links.insert(l);
+        w = l.start;
     }
     return w == v;
 }
@@ -48,15 +56,15 @@ int main(int argc, char *argv[]) {
     const uint32_t max_base_coverage = std::stoi(argv[4]);
     const uint32_t min_path_coverage = std::stoi(argv[5]);
 
-    std::cout << "Max base segment coverage set to " << max_base_coverage << '\n';
+    std::cout << "Max base segment coverage set to " << max_base_coverage << std::endl;
 
-    std::cout << "Reading coverage from " << coverage_fn << '\n';
+    std::cout << "Reading coverage from " << coverage_fn << std::endl;
     const auto segment_cov = utils::ReadCoverage(coverage_fn);
 
     gfa::Graph g;
-    std::cout << "Loading graph from GFA file " << in_fn << '\n';
+    std::cout << "Loading graph from GFA file " << in_fn << std::endl;
     g.open(in_fn);
-    std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << '\n';
+    std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << std::endl;
 
     //std::set<std::string> neighbourhood;
 
@@ -84,8 +92,8 @@ int main(int argc, char *argv[]) {
 
             if (UnambiguousBackwardAlternative(g, w, v, segment_cov, min_path_coverage)) {
                 DEBUG("Unambiguous backward alternative found");
-                std::cout << "Removing link " << g.str(v) << "," << g.str(w) << '\n';
-                //std::cout << "Removing link " << g.str(v) << " -> " << g.str(w) << '\n';
+                std::cout << "Removing link " << g.str(v) << "," << g.str(w) << std::endl;
+                //std::cout << "Removing link " << g.str(v) << " -> " << g.str(w) << std::endl;
                 //TODO some links are counted 'twice' along with its conjugate
                 ++l_ndel;
                 g.DeleteLink(l);
@@ -93,7 +101,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    std::cout << "Total of " << l_ndel << " links removed\n";
+    std::cout << "Total of " << l_ndel << " links removed" << std::endl;
     if (l_ndel > 0)
         g.Cleanup();
 

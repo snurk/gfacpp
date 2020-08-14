@@ -10,7 +10,7 @@
 
 #define LOG_MSG(msg)                                                    \
   do {                                                                  \
-     std::cout << msg << '\n';                                          \
+     std::cout << msg << std::endl;                                     \
   } while(0);
 
 #ifdef DEBUG_LOGGING

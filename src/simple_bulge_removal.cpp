@@ -41,9 +41,15 @@
 inline gfa::Path UnambiguousBackwardPath(const gfa::Graph &g, gfa::DirectedSegment w, gfa::DirectedSegment v) {
     assert(w != v);
     std::vector<gfa::LinkInfo> rev_links;
+    std::set<gfa::LinkInfo> used_links;
     while (g.unique_incoming(w) && w != v) {
         auto l = *g.incoming_begin(w);
+        if (used_links.count(l)) {
+            DEBUG("Loop detected");
+            return gfa::Path();
+        }
         rev_links.push_back(l);
+        used_links.insert(l);
         w = l.start;
     }
     if (w == v) {
@@ -115,7 +121,7 @@ inline bool FormsSimpleBubble(const gfa::Graph &g, gfa::DirectedSegment n,
             if (alt_p.min_overlap() < min_ovl && alt_p.min_overlap() < min_alt_overlap) {
                 DEBUG("Minimal overlap along the 'alt' path " << g.str(alt_p)
                     << " was shorter than for the 'base' path via " << g.str(n)
-                    << " and shorted than " << min_alt_overlap << " threshold");
+                    << " and shorter than " << min_alt_overlap << " threshold");
                 continue;
             }
             for (const auto &a : alt_p.segments) {
@@ -144,9 +150,9 @@ int main(int argc, char *argv[]) {
     const uint32_t min_alt_overlap = std::stoi(argv[5]);
 
     gfa::Graph g;
-    std::cout << "Loading graph from GFA file " << in_fn << '\n';
+    std::cout << "Loading graph from GFA file " << in_fn << std::endl;
     g.open(in_fn);
-    std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << '\n';
+    std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << std::endl;
 
     //std::set<std::string> neighbourhood;
     std::set<uint32_t> protected_segments;
@@ -168,7 +174,7 @@ int main(int argc, char *argv[]) {
     size_t ndel = 0;
     for (auto ovl_s : segments_of_interest) {
         uint32_t seg_id = ovl_s.second;
-        std::cout << "Considering segment " << g.str(seg_id) << ". Min overlap " << ovl_s.first << '\n';
+        std::cout << "Considering segment " << g.str(seg_id) << ". Min overlap " << ovl_s.first << std::endl;
 
         if (protected_segments.count(seg_id)) {
             DEBUG("Segment " << g.str(seg_id) << " is protected");
@@ -178,7 +184,7 @@ int main(int argc, char *argv[]) {
                     max_length, max_diff, min_alt_overlap, protected_segments)
             || FormsSimpleBubble(g, gfa::DirectedSegment::Reverse(seg_id),
                 max_length, max_diff, min_alt_overlap, protected_segments)) {
-            std::cout << "Removing simple bulge " << g.str(seg_id) << '\n';
+            std::cout << "Removing simple bulge " << g.str(seg_id) << std::endl;
             g.DeleteSegment(seg_id);
             ++ndel;
         }

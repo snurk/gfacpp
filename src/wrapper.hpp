@@ -260,6 +260,11 @@ struct LinkInfo {
             && end_overlap == end_overlap;
     }
 
+    bool operator<(const LinkInfo &rhs) const {
+        return std::make_tuple(start, end, start_overlap, end_overlap)
+                < std::make_tuple(rhs.start, rhs.end, rhs.start_overlap, rhs.end_overlap);
+    }
+
     bool operator!=(const LinkInfo &rhs) const {
         return !(*this == rhs);
     }
