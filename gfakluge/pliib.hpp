@@ -7,7 +7,7 @@
 #include <cstring>
 #include <vector>
 #include <functional>
-#include <omp.h>
+//#include <omp.h>
 #include <functional>
 
 using namespace std;
@@ -264,7 +264,7 @@ namespace pliib{
     inline void remove_char(char*& s, const int& len, char r){
         int write_index = 0;
         int read_index = 0;
-        for (int i = 0; i < len, read_index < len; ++i){
+        for (int i = 0; i < len && read_index < len; ++i){
             if (s[i] != r){
                 s[write_index] = s[read_index];
                 ++write_index;
@@ -368,7 +368,7 @@ namespace pliib{
         inline std::vector<DataType, A> p_vv_map(const std::vector<DataType, A> v, typename std::function<DataType(DataType)> lambda){
             std::vector<DataType> results(v.size());
             size_t sz = v.size();
-            #pragma omp parallel for
+            //#pragma omp parallel for
             for (size_t i = 0; i < sz; ++i){
                 results[i] = lambda(v[i]);
             }
@@ -399,11 +399,11 @@ namespace pliib{
      */
     template<typename DataType, typename A>
         inline void p_vv_apply(std::vector<DataType, A>& v, typename std::function<DataType(DataType)> lambda){
-            #pragma omp parallel for //private(i)
+            //#pragma omp parallel for //private(i)
             for (size_t i = 0; i < v.size(); i++){
                 auto r = lambda(v[i]);
 
-                #pragma omp atomic write
+                //#pragma omp atomic write
                 v[i] = r;
             }
         }

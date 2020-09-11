@@ -723,7 +723,7 @@ namespace gfak{
 
             };
 
-            inline double detect_version_from_file(const char* filename){
+            inline void detect_version_from_file(const char* filename){
                 ifstream gfi;
                 gfi.open(filename, std::ifstream::in);
                 if (!gfi.good()){
