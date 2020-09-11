@@ -7,7 +7,7 @@ DEPS:=src/*.hpp
 #EXECS=$(patsubst src/%.cpp,$(ODIR)/%,$(SRCS))
 EXECS:=test weak_removal unbalanced_removal simple_bulge_removal bubble_removal shortcut_remover loop_killer
 
-LEGACY_DEPS:=src/legacy/*.hpp
+LEGACY_DEPS:=src/legacy/*.hpp gfakluge/*.hpp
 LEGACY_EXECS:=neighborhood cnt_aware_tip_clipper tip_clipper isolated_remover low_cov_remover path_length #bubble_finder
 
 all: $(patsubst %,$(ODIR)/%,$(EXECS)) $(patsubst %,$(ODIR)/%,$(LEGACY_EXECS))
