@@ -257,7 +257,7 @@ struct LinkInfo {
     bool operator==(const LinkInfo &rhs) const {
         return start == rhs.start && end == rhs.end
             && start_overlap == rhs.start_overlap
-            && end_overlap == end_overlap;
+            && end_overlap == rhs.end_overlap;
     }
 
     bool operator<(const LinkInfo &rhs) const {
