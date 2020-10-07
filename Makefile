@@ -1,4 +1,4 @@
-CXX?=g++
+CXX:=g++
 CXXFLAGS:=-I./src -I./gfatools -I./gfakluge -O3 -std=c++14
 LIBS:=-lz
 ODIR:=build

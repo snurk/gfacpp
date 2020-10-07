@@ -62,8 +62,9 @@ public:
     }
 };
 
+typedef std::unordered_map<std::string, uint32_t> SegmentCoverageMap;
 auto ReadCoverage(std::string fn) {
-    std::unordered_map<std::string, uint32_t> segment_coverage;
+    SegmentCoverageMap segment_coverage;
     std::string seg_name;
     uint32_t cov;
 
