@@ -47,7 +47,6 @@ struct cmd_cfg {
     double max_coverage_ratio = std::numeric_limits<double>::max();
 };
 
-        //std::cerr << "Usage: " << argv[0] << " <gfa input> <gfa output> <max length> <max diff> <min alt overlap>" << std::endl;
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
   using namespace clipp;
 
@@ -69,14 +68,24 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
       //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
   );
 
+
   auto result = parse(argc, argv, cli);
   if (!result) {
-      std::cout << make_man_page(cli, argv[0]);
+      std::cerr << make_man_page(cli, argv[0]);
       exit(1);
+  }
+
+  if (cfg.max_unique_cov != std::numeric_limits<double>::max() ||
+      cfg.max_coverage_ratio != std::numeric_limits<double>::max()) {
+      if (cfg.coverage.empty()) {
+          std::cerr << "Provide --coverage file\n";
+          exit(2);
+      }
   }
 }
 
 //TODO maybe consider all paths rather than unambiguous
+//Outputting unambiguous path from w to v or empty path
 inline gfa::Path UnambiguousBackwardPath(const gfa::Graph &g, gfa::DirectedSegment w, gfa::DirectedSegment v) {
     assert(w != v);
     std::vector<gfa::LinkInfo> rev_links;
@@ -104,11 +113,6 @@ inline gfa::Path UnambiguousBackwardPath(const gfa::Graph &g, gfa::DirectedSegme
     return gfa::Path();
 }
 
-template<typename T>
-T abs_diff(T a, T b) {
-    return (a > b) ? a-b : b-a;
-}
-
 inline bool CheckNotInPath(const gfa::Path &p, gfa::DirectedSegment n) {
     for (const auto &v : p.segments) {
         if (v == n || v == n.Complement()) {
@@ -123,7 +127,7 @@ typedef std::function<bool (const gfa::Path &base, const gfa::Path &alt)> BulgeC
 inline bool FormsSimpleBulge(const gfa::Graph &g, gfa::DirectedSegment n,
                              size_t max_length,
                              const BulgeCheckF &check_f,
-                             std::set<uint32_t> &protected_segments) {
+                             std::set<gfa::SegmentId> &protected_segments) {
     assert(g.unique_incoming(n) && g.unique_outgoing(n));
     DEBUG("Considering node " << g.str(n));
     gfa::Path p({*g.incoming_begin(n), *g.outgoing_begin(n)});
@@ -187,12 +191,12 @@ int main(int argc, char *argv[]) {
     std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << std::endl;
 
     //std::set<std::string> neighbourhood;
-    std::set<uint32_t> protected_segments;
+    std::set<gfa::SegmentId> protected_segments;
 
     //min(unique_left_ovl, unique_right_ovl) & segment_id
-    std::vector<std::pair<int32_t, uint32_t>> segments_of_interest;
+    std::vector<std::pair<int32_t, gfa::SegmentId>> segments_of_interest;
     segments_of_interest.reserve(g.segment_cnt());
-    for (uint32_t s = 0; s < g.segment_cnt(); ++s) {
+    for (gfa::SegmentId s = 0; s < g.segment_cnt(); ++s) {
         gfa::DirectedSegment v(s, gfa::Direction::FORWARD);
         if (g.unique_outgoing(v) && g.unique_incoming(v)) {
             int32_t min_ovl = std::min((*g.outgoing_begin(v)).start_overlap, (*g.incoming_begin(v)).end_overlap);
@@ -202,8 +206,6 @@ int main(int argc, char *argv[]) {
 
     //sort in order of increased min overlaps
     std::sort(segments_of_interest.begin(), segments_of_interest.end());
-
-    const uint32_t max_length = cfg.max_length;
 
     auto cov_f = [&](gfa::DirectedSegment v) {
         assert(segment_cov_ptr);
@@ -221,7 +223,7 @@ int main(int argc, char *argv[]) {
 
     auto bulge_check_f = [&](const gfa::Path &base, const gfa::Path &alt) {
         assert(base.segment_cnt() == 3 && alt.segment_cnt() >= 3);
-        if (abs_diff(g.total_length(alt), g.total_length(base)) > cfg.max_diff) {
+        if (utils::abs_diff(g.total_length(alt), g.total_length(base)) > cfg.max_diff) {
             DEBUG("Difference in length between 'alt' and 'base' paths exceeded max_diff=" << max_diff);
             return false;
         }
@@ -242,12 +244,12 @@ int main(int argc, char *argv[]) {
             //todo can be optimized if the check is actually disabled
             auto v = base.segments.front();
             auto w = base.segments.back();
-            if (cov_f(v) > cfg.max_unique_cov + 1e5 || cov_f(w) > cfg.max_unique_cov + 1e5) {
+            if (cov_f(v) > cfg.max_unique_cov + 1e-5 || cov_f(w) > cfg.max_unique_cov + 1e-5) {
                 DEBUG("Coverage on one of the sides exceeded 'uniqueness' threshold=" << cfg.max_unique_cov);
                 return false;
             }
 
-            if (inner_cov_f(alt) < 1e5 || (inner_cov_f(base) / inner_cov_f(alt)) > cfg.max_coverage_ratio) {
+            if (inner_cov_f(alt) < 1e-5 || (inner_cov_f(base) / inner_cov_f(alt)) > cfg.max_coverage_ratio) {
                 DEBUG("Ratio between estimated coverage of the node and alternative path exceeded specified ratio threshold=" << cfg.max_coverage_ratio);
                 return false;
             }
@@ -257,7 +259,7 @@ int main(int argc, char *argv[]) {
 
     size_t ndel = 0;
     for (auto ovl_s : segments_of_interest) {
-        uint32_t seg_id = ovl_s.second;
+        gfa::SegmentId seg_id = ovl_s.second;
         std::cout << "Considering segment " << g.str(seg_id) << ". Min overlap " << ovl_s.first << std::endl;
 
         if (protected_segments.count(seg_id)) {
@@ -265,14 +267,17 @@ int main(int argc, char *argv[]) {
             continue;
         }
         if (FormsSimpleBulge(g, gfa::DirectedSegment::Forward(seg_id),
-                    max_length, bulge_check_f, protected_segments)
+                    cfg.max_length, bulge_check_f, protected_segments)
             || FormsSimpleBulge(g, gfa::DirectedSegment::Reverse(seg_id),
-                max_length, bulge_check_f, protected_segments)) {
+                    cfg.max_length, bulge_check_f, protected_segments)) {
             std::cout << "Removing simple bulge " << g.str(seg_id) << std::endl;
             g.DeleteSegment(seg_id);
             ++ndel;
         }
     }
+
+    if (ndel > 0)
+        g.Cleanup();
 
     std::cout << "Writing output to " << cfg.graph_out << std::endl;
     g.write(cfg.graph_out);

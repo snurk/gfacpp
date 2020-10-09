@@ -20,6 +20,7 @@
 #endif
 
 # define INFO(message)                      LOG_MSG(message)
+# define WARN(message)                      LOG_MSG("WARNING: " << message)
 
 namespace utils {
 
@@ -44,6 +45,11 @@ const std::vector<typename MMapT::mapped_type> get_all(const MMapT &from, const 
         answer.push_back(it->second);
     }
     return answer;
+}
+
+template<typename T>
+T abs_diff(T a, T b) {
+    return (a > b) ? a-b : b-a;
 }
 
 template<class It>

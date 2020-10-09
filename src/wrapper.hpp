@@ -31,21 +31,23 @@ inline bool operator<(Direction a, Direction b) {
     return static_cast<int>(a) < static_cast<int>(b);
 }
 
+typedef uint32_t SegmentId;
+
 struct DirectedSegment {
-    uint32_t segment_id;
+    SegmentId segment_id;
     Direction direction;
 
-    DirectedSegment(uint32_t segment_id_, Direction direction_) : segment_id(segment_id_), direction(direction_) { }
+    DirectedSegment(SegmentId segment_id_, Direction direction_) : segment_id(segment_id_), direction(direction_) { }
 
     DirectedSegment() : segment_id(-1u), direction(Direction::FORWARD) { }
 
     //DirectedSegment& operator=(const DirectedSegment &ds) {segment_id = ds.segment_id;direction = ds.direction; return *this;}// = default;
 
-    static DirectedSegment Forward(uint32_t seg_id) {
+    static DirectedSegment Forward(SegmentId seg_id) {
         return DirectedSegment(seg_id, Direction::FORWARD);
     }
 
-    static DirectedSegment Reverse(uint32_t seg_id) {
+    static DirectedSegment Reverse(SegmentId seg_id) {
         return DirectedSegment(seg_id, Direction::REVERSE);
     }
 
@@ -74,59 +76,6 @@ struct DirectedSegment {
         return (segment_id == rhs.segment_id) ? (direction < rhs.direction) : (segment_id < rhs.segment_id);
     }
 };
-
-//typedef struct {
-//	uint32_t m_aux, l_aux;
-//	uint8_t *aux;
-//} gfa_aux_t;
-//
-//typedef struct {
-//	uint32_t start, end; // start: starting vertex in the string graph; end: ending vertex
-//	uint32_t len2, dummy; // len_r: the other length of the unitig
-//	uint32_t m, n; // number of reads
-//	uint64_t *a; // list of reads
-//	char **name;
-//} gfa_utg_t;
-//
-//typedef struct {
-//	int32_t len;
-//	uint32_t del:16, circ:16;
-//	int32_t snid; // stable name ID
-//	int32_t soff; // stable start position
-//	int32_t rank; // stable rank
-//	char *name, *seq;
-//	gfa_utg_t *utg;
-//	gfa_aux_t aux;
-//} gfa_seg_t;
-//
-//typedef struct {
-//	int32_t len, snid, soff, rank;
-//	uint64_t end[2];
-//	char *seq;
-//} gfa_sfa_t;
-//
-//typedef struct {
-//	char *name;
-//	int32_t min, max, rank;
-//} gfa_sseq_t;
-//
-//#define gfa_n_vtx(g) ((g)->n_seg << 1)
-//
-//typedef struct {
-//	// segments
-//	uint32_t m_seg, n_seg, max_rank;
-//	gfa_seg_t *seg;
-//	void *h_names;
-//	// persistent names
-//	uint32_t m_sseq, n_sseq;
-//	gfa_sseq_t *sseq;
-//	void *h_snames;
-//	// links
-//	uint64_t m_arc, n_arc:62, is_srt:1, is_symm:1;
-//	gfa_arc_t *arc;
-//	gfa_aux_t *link_aux;
-//	uint64_t *idx;
-//} gfa_t;
 
 //FIXME consider making a wrapper over original type rather than copying fields
 struct SegmentInfo {
@@ -232,13 +181,14 @@ public:
     }
 
     // iterator traits
-    using difference_type = uint32_t;
+    using difference_type = ptrdiff_t;
     using value_type = DirectedSegment;
     using pointer = const DirectedSegment*;
     using reference = const DirectedSegment&;
     using iterator_category = std::forward_iterator_tag;
 };
 
+//FIXME rename Links into Arcs or Edges, because they are directed?!
 struct LinkInfo {
     DirectedSegment start;
     DirectedSegment end;
@@ -404,19 +354,21 @@ public:
 
     gfa_t *get() const { return g_ptr_.get(); }
 
-    uint32_t segment_cnt() const { return g_ptr_->n_seg; }
-    uint64_t link_cnt() const { return g_ptr_->n_arc; }
+    SegmentId segment_cnt() const { return g_ptr_->n_seg; }
+    size_t link_cnt() const { return g_ptr_->n_arc; }
 
-    int32_t id(const std::string &name) const {
+    SegmentId id(const std::string &name) const {
         return gfa_name2id(get(), name.c_str());
     }
 
+    //FIXME rename to 'read'
     bool open(const std::string &filename) {
         g_ptr_.reset(gfa_read(filename.c_str()));
         return (bool)g_ptr_;
     }
 
     void write(const std::string &filename) const {
+        //FIXME consider putting Cleanup call here
         FILE *f = fopen(filename.c_str(), "w");
         fprintf(f, "H\tVN:Z:1.0\n");
         gfa_print(get(), f, 0);
@@ -425,7 +377,7 @@ public:
 
     bool valid() const { return bool(g_ptr_); }
 
-    void DeleteSegment(uint32_t segment_id) { gfa_seg_del(get(), segment_id); }
+    void DeleteSegment(SegmentId segment_id) { gfa_seg_del(get(), segment_id); }
 
     void DeleteSegment(DirectedSegment v) { gfa_seg_del(get(), v.segment_id); }
 
@@ -440,6 +392,7 @@ public:
     }
 
     void DeleteLink(DirectedSegment v, DirectedSegment w) {
+        //FIXME consider making the second call to simplify checks of alive arcs
         gfa_arc_del(get(), v.AsInnerVertexT(), w.AsInnerVertexT(), 1);
     }
 
@@ -447,8 +400,12 @@ public:
         return gfa_arc_n(get(), v.AsInnerVertexT());
     }
 
-    uint32_t unique_outgoing(DirectedSegment v) const {
+    bool unique_outgoing(DirectedSegment v) const {
         return outgoing_link_cnt(v) == 1;
+    }
+
+    bool no_outgoing(DirectedSegment v) const {
+        return outgoing_link_cnt(v) == 0;
     }
 
     LinkIterator outgoing_begin(DirectedSegment v) const {
@@ -467,8 +424,12 @@ public:
         return gfa_arc_n(get(), v.Complement().AsInnerVertexT());
     }
 
-    uint32_t unique_incoming(DirectedSegment v) const {
+    bool unique_incoming(DirectedSegment v) const {
         return incoming_link_cnt(v) == 1;
+    }
+
+    bool no_incoming(DirectedSegment v) const {
+        return incoming_link_cnt(v) == 0;
     }
 
     LinkIterator incoming_begin(DirectedSegment v) const {
@@ -484,7 +445,7 @@ public:
         return utils::ProxyContainer<LinkIterator>(incoming_begin(v), incoming_end(v));
     }
 
-    SegmentInfo segment(uint32_t segment_id) const {
+    SegmentInfo segment(SegmentId segment_id) const {
         assert(segment_id < segment_cnt());
         return SegmentInfo::FromInnerSegT(get()->seg[segment_id]);
     }
@@ -493,7 +454,7 @@ public:
         return segment(v.segment_id);
     }
 
-    std::string segment_name(uint32_t segment_id) const {
+    std::string segment_name(SegmentId segment_id) const {
         assert(segment_id < segment_cnt());
         return get()->seg[segment_id].name;
     }
@@ -502,12 +463,12 @@ public:
         return segment_name(v.segment_id);
     }
 
-    uint32_t segment_length(uint32_t segment_id) const {
+    size_t segment_length(SegmentId segment_id) const {
         assert(segment_id < segment_cnt());
         return get()->seg[segment_id].len;
     }
 
-    uint32_t segment_length(DirectedSegment v) const {
+    size_t segment_length(DirectedSegment v) const {
         return segment_length(v.segment_id);
     }
 
@@ -535,7 +496,7 @@ public:
         return utils::ProxyContainer<DirectedSegmentIterator>(directed_segment_begin(), directed_segment_end());
     }
 
-    std::string str(uint32_t segment_id) const {
+    std::string str(SegmentId segment_id) const {
         return std::string(segment(segment_id).name);
     }
 
