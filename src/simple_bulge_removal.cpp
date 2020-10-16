@@ -162,13 +162,12 @@ inline bool FormsSimpleBulge(const gfa::Graph &g, gfa::DirectedSegment n,
 
             if (check_f(p, alt_p)) {
                 DEBUG("Check successful, removing node " << g.str(n));
+                for (const auto &a : alt_p.segments) {
+                    DEBUG("Marking alternative path node " << g.str(a) << " as protected");
+                    protected_segments.insert(a.segment_id);
+                }
+                return true;
             }
-
-            for (const auto &a : alt_p.segments) {
-                DEBUG("Marking alternative path node " << g.str(a) << " as protected");
-                protected_segments.insert(a.segment_id);
-            }
-            return true;
         }
     }
     return false;
@@ -224,7 +223,7 @@ int main(int argc, char *argv[]) {
     auto bulge_check_f = [&](const gfa::Path &base, const gfa::Path &alt) {
         assert(base.segment_cnt() == 3 && alt.segment_cnt() >= 3);
         if (utils::abs_diff(g.total_length(alt), g.total_length(base)) > cfg.max_diff) {
-            DEBUG("Difference in length between 'alt' and 'base' paths exceeded max_diff=" << max_diff);
+            DEBUG("Difference in length between 'alt' and 'base' paths exceeded max_diff=" << cfg.max_diff);
             return false;
         }
         if (g.total_length(base) > g.total_length(alt) && (g.total_length(base) - g.total_length(alt)) > cfg.max_shortening) {
@@ -234,8 +233,8 @@ int main(int argc, char *argv[]) {
 
         assert(alt.min_overlap() > 0 && base.min_overlap() > 0);
         if (alt.min_overlap() < base.min_overlap() && alt.min_overlap() < cfg.min_alt_overlap) {
-            DEBUG("Minimal overlap along the 'alt' path " << g.str(alt_p)
-                << " was shorter than for the 'base' path via " << g.str(n)
+            DEBUG("Minimal overlap along the 'alt' path " << g.str(alt)
+                << " was shorter than for the 'base' path " << g.str(base)
                 << " and shorter than " << cfg.min_alt_overlap << " threshold");
             return false;
         }
@@ -249,6 +248,7 @@ int main(int argc, char *argv[]) {
                 return false;
             }
 
+            DEBUG("Cov base " << inner_cov_f(base) << " cov alt " << inner_cov_f(alt));
             if (inner_cov_f(alt) < 1e-5 || (inner_cov_f(base) / inner_cov_f(alt)) > cfg.max_coverage_ratio) {
                 DEBUG("Ratio between estimated coverage of the node and alternative path exceeded specified ratio threshold=" << cfg.max_coverage_ratio);
                 return false;
