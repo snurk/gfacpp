@@ -382,9 +382,7 @@ public:
     void DeleteSegment(DirectedSegment v) { gfa_seg_del(get(), v.segment_id); }
 
     void Cleanup() {
-        //gfa_cleanup(get());
-        //TODO check difference with Heng
-        gfa_finalize(get());
+        gfa_cleanup(get());
         gfa_fix_symm_del(get());
     }
 
