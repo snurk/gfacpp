@@ -222,12 +222,15 @@ int main(int argc, char *argv[]) {
 
     auto bulge_check_f = [&](const gfa::Path &base, const gfa::Path &alt) {
         assert(base.segment_cnt() == 3 && alt.segment_cnt() >= 3);
-        if (utils::abs_diff(g.total_length(alt), g.total_length(base)) > cfg.max_diff) {
-            DEBUG("Difference in length between 'alt' and 'base' paths exceeded max_diff=" << cfg.max_diff);
+        auto diff = utils::abs_diff(g.total_length(alt), g.total_length(base));
+
+        if (diff > cfg.max_diff) {
+            DEBUG(diff << "bp diff in length between 'alt' and 'base' paths exceeded max_diff=" << cfg.max_diff);
             return false;
         }
-        if (g.total_length(base) > g.total_length(alt) && (g.total_length(base) - g.total_length(alt)) > cfg.max_shortening) {
-            DEBUG("'Alt' length was " << (g.total_length(base) - g.total_length(alt)) << "bp shorter than 'base', which exceeded max_shortening threshold=" << cfg.max_shortening);
+
+        if (g.total_length(base) > g.total_length(alt) && diff > cfg.max_shortening) {
+            DEBUG("'Alt' length was " << diff << "bp shorter than 'base', which exceeded max_shortening threshold=" << cfg.max_shortening);
             return false;
         }
 

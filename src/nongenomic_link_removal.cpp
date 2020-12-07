@@ -84,8 +84,10 @@ inline std::set<gfa::SegmentId> FindSuspicious(const gfa::Graph &g,
 
         if (unambiguously_incoming.size() > 1) {
             for (auto v: unambiguously_incoming) {
+                DEBUG("Segment " << g.str(v.segment_id) << " is suspected to be false");
                 suspected_false.insert(v.segment_id);
             }
+            DEBUG("Segment " << g.str(w.segment_id) << " is suspected to be repeat");
             suspected_repeats.insert(w.segment_id);
         }
     }
@@ -155,11 +157,20 @@ int main(int argc, char *argv[]) {
     };
 
     auto has_nongenomic_start = [&](gfa::LinkInfo l) {
+        //DEBUG("Checking start of link " << g.str(l) << " for not being genomic");
         auto v = l.start;
         auto w = l.end;
 
-        if (g.unique_incoming(w) || !uniqueness_f(v.segment_id))
+        if (g.unique_incoming(w)) {
+            //DEBUG("Link end has single incoming");
             return false;
+        }
+        DEBUG("Checking start of link " << g.str(l) << " for not being genomic");
+
+        if (!uniqueness_f(v.segment_id)) {
+            DEBUG("Link start doesn't seem unique");
+            return false;
+        }
 
         //TODO extra point if w is also single copy?
 
@@ -168,9 +179,14 @@ int main(int argc, char *argv[]) {
                 assert(l == l1);
                 continue;
             }
-            if (g.unique_incoming(l1.end) && check_reliable_ext(l1)) {
-                //unambiguous for some reliable extension
-                return true;
+            if (g.unique_incoming(l1.end)) {
+                if (check_reliable_ext(l1)) {
+                    //unambiguous for some reliable extension
+                    DEBUG("Reliable unambiguous extension " << g.str(l1) << " found");
+                    return true;
+                } else {
+                    DEBUG("Unambiguous extension " << g.str(l1) << " was unreliable");
+                }
             }
         }
         return false;
@@ -186,6 +202,8 @@ int main(int argc, char *argv[]) {
                     INFO("Removing link " << g.str(l));
                     g.DeleteLink(l);
                     ++l_ndel;
+                } else {
+                    DEBUG("End of the link " << g.str(l) << " looked genomic");
                 }
             }
         }
