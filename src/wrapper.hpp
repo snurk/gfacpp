@@ -9,6 +9,7 @@
 #include <string>
 #include <cassert>
 #include <limits>
+#include <algorithm>
 
 namespace gfa {
 
@@ -78,6 +79,7 @@ struct DirectedSegment {
 };
 
 //FIXME consider making a wrapper over original type rather than copying fields
+//FIXME it's hard to use without segment id
 struct SegmentInfo {
     //std::string sequence;
     const char* sequence;
@@ -228,6 +230,10 @@ struct LinkInfo {
         return answer;
     }
 
+    bool IsCanonical() const {
+        return !(Complement() < *this);
+    }
+
     int32_t overlap() const {
         return std::min(start_overlap, end_overlap);
     }
@@ -330,6 +336,7 @@ struct Path {
 
     Path(std::vector<LinkInfo> links_):
         links(std::move(links_)) {
+        assert(!links.empty());
         segments.reserve(links.size() - 1);
         for (const auto &l : links) {
             if (segments.empty()) {
@@ -339,6 +346,22 @@ struct Path {
             }
             segments.push_back(l.end);
         }
+    }
+
+    Path Complement() const {
+        if (segments.empty())
+            return Path();
+
+        if (segments.size() == 1)
+            return Path(segments.front().Complement());
+
+        assert(!links.empty());
+        std::vector<LinkInfo> ls;
+        ls.reserve(links.size());
+        std::transform(links.rbegin(), links.rend(), std::back_inserter(ls),
+                       [](const LinkInfo &l) {return l.Complement();});
+
+        return Path(std::move(ls));
     }
 
 };
@@ -504,16 +527,16 @@ public:
         return std::string(segment(v.segment_id).name) + PrintDirection(v.direction);
     }
 
-    std::string str(const LinkInfo &l) const {
-        return str(l.start) + "->" + str(l.end);
+    std::string str(const LinkInfo &l, const std::string &d = "->") const {
+        return str(l.start) + d + str(l.end);
     }
 
-    std::string str(const Path &p) const {
+    std::string str(const Path &p, const std::string &d = " -> ") const {
         std::stringstream ss;
-        std::string delim = "";
+        std::string delim;
         for (const auto &v : p.segments) {
             ss << delim << str(v);
-            delim = " -> ";
+            delim = d;
         }
         return ss.str();
     }
@@ -527,7 +550,6 @@ public:
         }
         return answer;
     }
-
 
 };
 
