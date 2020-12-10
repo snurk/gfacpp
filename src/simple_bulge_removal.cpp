@@ -1,6 +1,6 @@
+#include "tooling.hpp"
 #include "wrapper.hpp"
 #include "utils.hpp"
-#include "clipp.h"
 
 #include <vector>
 #include <functional>
@@ -10,16 +10,7 @@
 #include <cassert>
 #include <iostream>
 
-struct cmd_cfg {
-    //input file
-    std::string graph_in;
-
-    //output file
-    std::string graph_out;
-
-    //optional file with coverage
-    std::string coverage;
-
+struct cmd_cfg: public tooling::cmd_cfg_base {
     //check that length contributed by the node is below
     size_t max_length = std::numeric_limits<size_t>::max();
 
@@ -50,10 +41,15 @@ struct cmd_cfg {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
   using namespace clipp;
 
+  //TODO reduce code duplication
   auto cli = (
       cfg.graph_in << value("input file in GFA (ending with .gfa)"),
       cfg.graph_out << value("output file"),
       (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
+      option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
+      (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
+      (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
+      option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)",
       (option("-l", "--max-length") & integer("length", cfg.max_length)) % "check that length contributed by the node is below <length>",
       (option("-d", "--max-diff") & integer("value", cfg.max_diff)) % "check that length difference between paths is below <value>",
       //(option("--max-rel-diff") & number("frac", cfg.max_rel_diff)) % "check that relative length difference between paths is below <frac>",
@@ -279,12 +275,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (ndel > 0)
-        g.Cleanup();
+    tooling::OutputGraph(g, cfg, ndel, segment_cov_ptr.get());
 
-    std::cout << "Writing output to " << cfg.graph_out << std::endl;
-    g.write(cfg.graph_out);
     std::cout << "END" << std::endl;
 }
-
-

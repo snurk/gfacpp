@@ -12,6 +12,7 @@
 
 namespace gfa {
 
+//TODO move to cpp
 class Compactifier {
     const Graph &g_;
     const std::string name_prefix_;

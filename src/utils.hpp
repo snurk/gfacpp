@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <fstream>
 
-//#define DEBUG_LOGGING 1
+#define DEBUG_LOGGING 1
 
 #define LOG_MSG(msg)                                                    \
   do {                                                                  \
@@ -86,4 +86,3 @@ auto ReadCoverage(std::string fn) {
 }
 
 }
-

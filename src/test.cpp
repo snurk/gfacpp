@@ -1,43 +1,24 @@
-#include "wrapper.hpp"
-#include "clipp.h"
+#include "tooling.hpp"
 
 #include <iostream>
 #include <cassert>
 #include <compact.hpp>
 
-struct cmd_cfg {
-    //input file
-    std::string graph_in;
-
-    //output file
-    std::string graph_out;
-
-    //optional file with coverage
-    std::string coverage;
-
-    //optional file with id mapping
-    std::string id_mapping;
-
-    //prefix used to form compacted segment names
-    std::string compacted_prefix = "m_";
-
-    //flag to drop sequences even if present in original file
-    bool drop_sequence = false;
-};
-
-static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
+static void process_cmdline(int argc, char **argv,
+                            tooling::cmd_cfg_base &cfg) {
     using namespace clipp;
 
     auto cli = (
             cfg.graph_in << value("input file in GFA (ending with .gfa)"),
-                    cfg.graph_out << value("output file"),
-                    (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
-                    (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
-                    (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
-                    option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)"
+            cfg.graph_out << value("output file"),
+            (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
+            (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
+            (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
+            option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)"
             //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
     );
 
+    cfg.compact = true;
 
     auto result = parse(argc, argv, cli);
     if (!result) {
@@ -47,7 +28,7 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
 }
 
 int main(int argc, char *argv[]) {
-    cmd_cfg cfg;
+    tooling::cmd_cfg_base cfg;
     process_cmdline(argc, argv, cfg);
 
     const std::string in_fn(cfg.graph_in);
