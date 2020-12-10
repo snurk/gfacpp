@@ -375,7 +375,9 @@ public:
     Graph(const std::string &filename)
         : g_ptr_(gfa_read(filename.c_str()), gfa_destroy) {}
 
-    gfa_t *get() const { return g_ptr_.get(); }
+    const gfa_t *get() const { return g_ptr_.get(); }
+
+    gfa_t *get() { return g_ptr_.get(); }
 
     SegmentId segment_cnt() const { return g_ptr_->n_seg; }
     size_t link_cnt() const { return g_ptr_->n_arc; }
@@ -390,11 +392,11 @@ public:
         return (bool)g_ptr_;
     }
 
-    void write(const std::string &filename) const {
+    void write(const std::string &filename, bool drop_sequence = false) const {
         //FIXME consider putting Cleanup call here
         FILE *f = fopen(filename.c_str(), "w");
         fprintf(f, "H\tVN:Z:1.0\n");
-        gfa_print(get(), f, 0);
+        gfa_print(get(), f, drop_sequence ? GFA_O_NO_SEQ : 0);
         fclose(f);
     }
 
