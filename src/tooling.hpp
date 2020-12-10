@@ -39,6 +39,8 @@ void OutputGraph(gfa::Graph &g,
     if (ndel > 0)
         g.Cleanup();
 
+    assert(g.CheckNoDeadLinks());
+
     if (ndel > 0 && cfg.compact) {
         gfa::Compactifier compactifier(g, cfg.compacted_prefix, segment_cov_ptr);
         std::cout << "Writing compacted graph to " << cfg.graph_out << std::endl;

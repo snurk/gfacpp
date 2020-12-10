@@ -411,6 +411,15 @@ public:
         gfa_fix_symm_del(get());
     }
 
+    bool CheckNoDeadLinks() const {
+        for (uint64_t k = 0; k < get()->n_arc; ++k) {
+            const gfa_arc_t *a = &get()->arc[k];
+            if (a->del)
+                return false;
+        }
+        return true;
+    }
+
     //FIXME make faster by including a pointer to an arc into LinkInfo instead of copying
     void DeleteLink(LinkInfo l) {
         DeleteLink(l.start, l.end);
