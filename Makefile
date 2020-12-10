@@ -18,13 +18,16 @@ $(ODIR)/libgfa1.a:gfatools/*.c gfatools/*.h
 	make -C gfatools
 	cp gfatools/libgfa1.a $@
 
+$(ODIR)/wrapper.o:src/wrapper.cpp $(DEPS)
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
 $(ODIR)/%.o:src/%.cpp $(DEPS)
 	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 $(ODIR)/%.o:src/legacy/%.cpp $(DEPS) $(LEGACY_DEPS)
 	$(CXX) -c $(CXXFLAGS) $< -o $@
 
-$(ODIR)/%:$(ODIR)/%.o $(ODIR)/libgfa1.a
+$(ODIR)/%:$(ODIR)/%.o $(ODIR)/wrapper.o $(ODIR)/libgfa1.a
 	$(CXX) $^ -o $@ $(LIBS)
 
 .PRECIOUS: $(ODIR)/%.o

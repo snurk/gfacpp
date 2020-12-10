@@ -1,7 +1,6 @@
 #pragma once
 
 #include "gfa.h"
-#include "gfa-priv.h"
 #include "utils.hpp"
 
 #include <memory>
@@ -406,19 +405,9 @@ public:
 
     void DeleteSegment(DirectedSegment v) { gfa_seg_del(get(), v.segment_id); }
 
-    void Cleanup() {
-        gfa_cleanup(get());
-        gfa_fix_symm_del(get());
-    }
+    void Cleanup();
 
-    bool CheckNoDeadLinks() const {
-        for (uint64_t k = 0; k < get()->n_arc; ++k) {
-            const gfa_arc_t *a = &get()->arc[k];
-            if (a->del)
-                return false;
-        }
-        return true;
-    }
+    bool CheckNoDeadLinks() const;
 
     //FIXME make faster by including a pointer to an arc into LinkInfo instead of copying
     void DeleteLink(LinkInfo l) {
