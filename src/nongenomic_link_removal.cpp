@@ -1,6 +1,4 @@
-#include "wrapper.hpp"
-#include "utils.hpp"
-#include "clipp.h"
+#include "tooling.hpp"
 
 #include <vector>
 #include <functional>
@@ -11,16 +9,7 @@
 #include <iostream>
 
 //NB. By default nothing is unique and everything is reliable!
-struct cmd_cfg {
-    //input file
-    std::string graph_in;
-
-    //output file
-    std::string graph_out;
-
-    //optional file with coverage
-    std::string coverage;
-
+struct cmd_cfg: public tooling::cmd_cfg_base {
     size_t unique_len = std::numeric_limits<size_t>::max();
 
     //FIXME initialization!
@@ -42,6 +31,10 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
       cfg.graph_in << value("input file in GFA (ending with .gfa)"),
       cfg.graph_out << value("output file"),
       (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
+      option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
+      (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
+      (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
+      option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)",
       (option("--unique-len") & integer("length", cfg.unique_len)) % "longer nodes are considered unique",
       (option("--max-unique-cov") & number("value", cfg.max_unique_cov)) % "node below this coverage is likely unique (coverage must be available)",
       (option("--reliable-cov") & number("value", cfg.reliable_cov)) % "node above this coverage is more likely to be correct (coverage must be available)",
@@ -53,13 +46,14 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
 
   auto result = parse(argc, argv, cli);
   if (!result) {
+      std::cerr << "Removing links that are unlikely to be part of 'genomic' traversal" << std::endl;
       std::cout << make_man_page(cli, argv[0]);
       exit(1);
   }
 
   if (cfg.max_unique_cov > -1. || cfg.reliable_cov > -1.) {
       if (cfg.coverage.empty()) {
-          std::cerr << "Provide --coverage file\n";
+          std::cerr << "Provide --coverage file" << std::endl;
           exit(2);
       }
   }
@@ -223,17 +217,12 @@ int main(int argc, char *argv[]) {
     //    }
     //}
 
-    std::cout << "Total of " << l_ndel << " links removed" << std::endl;
-    if (l_ndel > 0)
-        g.Cleanup();
+    tooling::OutputGraph(g, cfg, l_ndel, segment_cov_ptr.get());
 
     for (auto s_id: FindDeadends(g)) {
         if (initial_deadends.count(s_id) == 0) {
             WARN("New deadend was formed! Node: " << g.str(s_id));
         }
     }
-
-    std::cout << "Writing output to " << cfg.graph_out << std::endl;
-    g.write(cfg.graph_out);
     std::cout << "END" << std::endl;
 }

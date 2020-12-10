@@ -1,36 +1,51 @@
 #include "superbubbles.hpp"
-#include "utils.hpp"
+#include "tooling.hpp"
 
 #include <vector>
 #include <set>
+#include <functional>
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 
+struct cmd_cfg: public tooling::cmd_cfg_base {
+    size_t max_length = 0;
+    size_t max_diff = 0;
+};
+
+static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
+    using namespace clipp;
+
+    auto cli = (
+            cfg.graph_in << value("input file in GFA (ending with .gfa)"),
+            cfg.graph_out << value("output file"),
+            (option("--max-length") & integer("value", cfg.max_length)) % "max (additional) bubble path length (default 20000)",
+            (option("--max-diff") & integer("value", cfg.max_diff)) % "max bubble path length difference (default: 2000)",
+            option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
+            (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
+            (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
+            option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)"
+            //option("--use-cov-ratios").set(cfg.use_cov_ratios) % "enable procedures based on unitig coverage ratios (default: false)",
+            //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
+    );
+
+    auto result = parse(argc, argv, cli);
+    if (!result) {
+        std::cerr << "Super-bubble removal" << std::endl;
+        std::cerr << make_man_page(cli, argv[0]);
+        exit(1);
+    }
+}
+
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <gfa input> <gfa output> [max_length (20000)] [max_diff (2000)]" << std::endl;
-        //std::cerr << "Usage: " << argv[0] << " <gfa input>" << std::endl;
-        exit(239);
-    }
-
-    const std::string in_fn(argv[1]);
-    const std::string out_fn(argv[2]);
-
-    size_t max_length = 20000;
-    if (argc > 3) {
-        max_length = std::stoi(argv[3]);
-    }
-    std::cout << "Max length set to " << max_length << std::endl;
-
-    size_t max_diff = 2000;
-    if (argc > 4) {
-        max_diff = std::stoi(argv[4]);
-    }
-    std::cout << "Max length diff set to " << max_diff << std::endl;
+    cmd_cfg cfg;
+    process_cmdline(argc, argv, cfg);
+    std::cout << "Max length set to " << cfg.max_length << std::endl;
+    std::cout << "Max length diff set to " << cfg.max_diff << std::endl;
 
     gfa::Graph g;
-    std::cout << "Loading graph from GFA file " << in_fn << std::endl;
-    g.open(in_fn);
+    std::cout << "Loading graph from GFA file " << cfg.graph_in << std::endl;
+    g.open(cfg.graph_in);
     std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << std::endl;
 
     //std::set<std::string> neighbourhood;
@@ -48,7 +63,7 @@ int main(int argc, char *argv[]) {
             DEBUG("Not considering. Was part of bubble.");
             continue;
         }
-        bubbles::SuperbubbleFinder finder(g, v, max_length, max_diff);
+        bubbles::SuperbubbleFinder finder(g, v, cfg.max_length, cfg.max_diff);
         if (finder.FindSuperbubble()) {
             std::cout << "Found superbubble between " << g.str(finder.start_vertex()) << " and " << g.str(finder.end_vertex()) << std::endl;
             for (gfa::DirectedSegment v : finder.segments()) {
@@ -119,11 +134,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    std::cout << "Total of " << l_ndel << " links and " << v_ndel << " segments removed" << std::endl;
-    if (l_ndel > 0 || v_ndel > 0)
-        g.Cleanup();
-
-    std::cout << "Writing output to " << out_fn << std::endl;
-    g.write(out_fn);
+    //std::cout << "Total of " << l_ndel << " links and " << v_ndel << " segments removed" << std::endl;
+    tooling::OutputGraph(g, cfg, (l_ndel + v_ndel) == 0 ? 0 : size_t(-1));
     std::cout << "END" << std::endl;
 }

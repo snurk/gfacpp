@@ -1,9 +1,6 @@
 #include "tooling.hpp"
 
 #include <iostream>
-#include <vector>
-#include <set>
-#include <cmath>
 #include <cassert>
 
 struct cmd_cfg: public tooling::cmd_cfg_base {
