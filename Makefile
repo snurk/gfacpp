@@ -5,10 +5,10 @@ ODIR:=build
 DEPS:=src/*.hpp
 #SRCS=$(wildcard src/*.cpp)
 #EXECS=$(patsubst src/%.cpp,$(ODIR)/%,$(SRCS))
-EXECS:=test weak_removal unbalanced_removal simple_bulge_removal bubble_removal shortcut_remover loop_killer nongenomic_link_removal
+EXECS:=test weak_removal unbalanced_removal simple_bulge_removal bubble_removal shortcut_remover loop_killer nongenomic_link_removal tip_clipper low_cov_remover isolated_remover
 
 LEGACY_DEPS:=src/legacy/*.hpp gfakluge/*.hpp
-LEGACY_EXECS:=neighborhood cnt_aware_tip_clipper tip_clipper isolated_remover low_cov_remover path_length #bubble_finder
+LEGACY_EXECS:=neighborhood path_length #bubble_finder
 
 all: $(patsubst %,$(ODIR)/%,$(EXECS)) $(patsubst %,$(ODIR)/%,$(LEGACY_EXECS))
 
