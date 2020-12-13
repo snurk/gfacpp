@@ -39,7 +39,7 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
 }
 
 inline bool UnambiguousBackwardPath(const gfa::Graph &g, gfa::DirectedSegment w, gfa::DirectedSegment v,
-                                    const std::unordered_map<std::string, uint32_t> &segment_cov,
+                                    const utils::SegmentCoverageMap &segment_cov,
                                     uint32_t min_path_coverage) {
     assert(w != v);
     std::set<gfa::LinkInfo> used_links;
@@ -59,7 +59,7 @@ inline bool UnambiguousBackwardPath(const gfa::Graph &g, gfa::DirectedSegment w,
 }
 
 inline bool UnambiguousBackwardAlternative(const gfa::Graph &g, gfa::DirectedSegment w, gfa::DirectedSegment v,
-                                           const std::unordered_map<std::string, uint32_t> &segment_cov,
+                                           const utils::SegmentCoverageMap &segment_cov,
                                            uint32_t min_path_coverage) {
     for (auto l : g.incoming_links(w)) {
         assert(l.end == w);

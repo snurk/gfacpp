@@ -152,7 +152,7 @@ public:
                 int32_t weight;
                 Range range;
                 std::tie(weight, range) = utils::get(superbubble_vertices_, neighbour_v);
-                range.shift(l.end_overlap < g_.segment_length(v) ? (int64_t) g_.segment_length(v) - l.end_overlap : 1);
+                range.shift(int64_t(l.end_overlap) < int64_t(g_.segment_length(v)) ? (int64_t) g_.segment_length(v) - l.end_overlap : 1);
                 DEBUG("Link from " << g_.str(neighbour_v) << " (overlap size " << l.end_overlap << ") provides distance range " << range);
                 if (range.start_pos < min_d)
                     min_d = range.start_pos;

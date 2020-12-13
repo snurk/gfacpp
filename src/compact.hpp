@@ -88,7 +88,7 @@ class Compactifier {
         for (auto l : p.links) {
             const auto seg_info = g_.segment(l.end);
             assert(l.end_overlap >= 0);
-            if (l.end_overlap >= seg_info.length) {
+            if (uint32_t(l.end_overlap) >= seg_info.length) {
                 WARN("Overlap is longer than (or equal to) segment");
             }
             auto trim = std::min(seg_info.length, uint32_t(l.end_overlap));

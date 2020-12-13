@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     for (gfa::DirectedSegment ds : g.directed_segments()) {
         //std::cerr << "Considering directed segment " << g.segment(ds.segment_id).name << " " << gfa::PrintDirection(ds.direction) << std::endl;
 
-        uint32_t max_ovl = 0;
+        int32_t max_ovl = 0;
         for (gfa::LinkInfo l : g.outgoing_links(ds)) {
             //std::cerr << "Considering link between " <<
             //    g.segment(l.start.segment_id).name << " (" << gfa::PrintDirection(l.start.direction) << ") and " <<
