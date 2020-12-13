@@ -135,7 +135,7 @@ public:
         std::ofstream out(out_fn);
         std::ofstream mapping_out;
         if (!mapping_fn.empty()) {
-            mapping_out.open(mapping_fn);
+            mapping_out.open(mapping_fn, std::ios_base::app);
         }
 
         out << "H\tVN:Z:1.0" << "\n";
