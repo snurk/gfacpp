@@ -16,6 +16,7 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     auto cli = (
             cfg.graph_in << value("input file in GFA (ending with .gfa)"),
             cfg.graph_out << value("output file"),
+            (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
             (required("--min-overlap") & integer("value", cfg.min_overlap)) % "overlap size threshold (default: 0)",
             option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
             (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
@@ -24,7 +25,6 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
             //option("--use-cov-ratios").set(cfg.use_cov_ratios) % "enable procedures based on unitig coverage ratios (default: false)",
             //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
     );
-
 
     auto result = parse(argc, argv, cli);
     if (!result) {
@@ -39,6 +39,12 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
 int main(int argc, char *argv[]) {
     cmd_cfg cfg;
     process_cmdline(argc, argv, cfg);
+
+    std::unique_ptr<utils::SegmentCoverageMap> segment_cov_ptr;
+    if (!cfg.coverage.empty()) {
+        std::cout << "Reading coverage from " << cfg.coverage << std::endl;
+        segment_cov_ptr = std::make_unique<utils::SegmentCoverageMap>(utils::ReadCoverage(cfg.coverage));
+    }
 
     gfa::Graph g;
     std::cout << "Loading graph from GFA file " << cfg.graph_in << std::endl;
@@ -78,6 +84,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    tooling::OutputGraph(g, cfg, ndel);
+    tooling::OutputGraph(g, cfg, ndel, segment_cov_ptr.get());
     std::cout << "END" << std::endl;
 }

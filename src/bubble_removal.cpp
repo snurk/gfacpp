@@ -21,6 +21,7 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
             cfg.graph_out << value("output file"),
             (option("--max-length") & integer("value", cfg.max_length)) % "max (additional) bubble path length (default 20000)",
             (option("--max-diff") & integer("value", cfg.max_diff)) % "max bubble path length difference (default: 2000)",
+            (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
             option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
             (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
             (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
@@ -42,6 +43,12 @@ int main(int argc, char *argv[]) {
     process_cmdline(argc, argv, cfg);
     std::cout << "Max length set to " << cfg.max_length << std::endl;
     std::cout << "Max length diff set to " << cfg.max_diff << std::endl;
+
+    std::unique_ptr<utils::SegmentCoverageMap> segment_cov_ptr;
+    if (!cfg.coverage.empty()) {
+        std::cout << "Reading coverage from " << cfg.coverage << std::endl;
+        segment_cov_ptr = std::make_unique<utils::SegmentCoverageMap>(utils::ReadCoverage(cfg.coverage));
+    }
 
     gfa::Graph g;
     std::cout << "Loading graph from GFA file " << cfg.graph_in << std::endl;
@@ -135,6 +142,6 @@ int main(int argc, char *argv[]) {
     }
 
     //std::cout << "Total of " << l_ndel << " links and " << v_ndel << " segments removed" << std::endl;
-    tooling::OutputGraph(g, cfg, (l_ndel + v_ndel) == 0 ? 0 : size_t(-1));
+    tooling::OutputGraph(g, cfg, (l_ndel + v_ndel) == 0 ? 0 : size_t(-1), segment_cov_ptr.get());
     std::cout << "END" << std::endl;
 }
