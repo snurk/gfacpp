@@ -70,10 +70,10 @@ int main(int argc, char *argv[]) {
                 max_onb_cov = nb_cov;
         }
 
-        uint32_t baseline_cov = segment_cov.find(g.segment_name(ds))->second;
+        uint32_t baseline_cov = utils::get(segment_cov, g.segment_name(ds));
 
         for (gfa::LinkInfo l : g.outgoing_links(ds)) {
-            auto nb_cov = segment_cov.find(g.segment_name(l.end))->second;
+            auto nb_cov = utils::get(segment_cov, g.segment_name(l.end));
             if (double(nb_cov) / baseline_cov > cfg.coverage_ratio - 1e-5)
                 continue;
 
