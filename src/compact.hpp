@@ -202,8 +202,8 @@ public:
 
                 if (coverage_f_) {
                     //adding Mikko-style output to simplify scripting
-                    out << "\tll:f:" << std::round(cc * 1000) / 1000;
                     out << "\tRC:i:" << uint64_t(std::round(cc * cl));
+                    out << "\tll:f:" << std::round(cc * 1000) / 1000;
                 }
                 out << "\n";
             }
