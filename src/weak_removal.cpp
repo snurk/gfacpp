@@ -8,6 +8,7 @@
 struct cmd_cfg: public tooling::cmd_cfg_base {
     //coverage ratio threshold
     int32_t min_overlap = 0;
+    bool prevent_deadends = false;
 };
 
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
@@ -16,8 +17,9 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     auto cli = (
             cfg.graph_in << value("input file in GFA (ending with .gfa)"),
             cfg.graph_out << value("output file"),
-            (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
             (required("--min-overlap") & integer("value", cfg.min_overlap)) % "overlap size threshold (default: 0)",
+            option("--prevent-deadends").set(cfg.prevent_deadends) % "check that no new dead-ends are formed (default: false)",
+            (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
             option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
             (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
             (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
@@ -32,6 +34,17 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
         std::cerr << make_man_page(cli, argv[0]);
         exit(1);
     }
+}
+
+//todo replace with std::any_of?
+inline bool CheckHasStrongIncoming(const gfa::Graph &g, gfa::DirectedSegment v, int32_t weak_thr) {
+    for (const auto &l : g.incoming_links(v)) {
+        auto ovl = std::max(l.start_overlap, l.end_overlap);
+        if (ovl >= weak_thr) {
+            return true;
+        }
+    }
+    return false;
 }
 
 //TODO consider making iterative right here after I can compress and track reads here
@@ -74,10 +87,15 @@ int main(int argc, char *argv[]) {
             if (max_ovl < cfg.min_overlap && ovl == max_ovl)
                 continue;
 
-            std::cout << "Removing link between " <<
-                g.segment(l.start.segment_id).name << " (" << gfa::PrintDirection(l.start.direction) << ") and " <<
-                g.segment(l.end.segment_id).name << " (" << gfa::PrintDirection(l.end.direction) << "). Overlaps " <<
-                l.start_overlap << " and " << l.end_overlap << std::endl;
+            if (cfg.prevent_deadends) {
+                if (!CheckHasStrongIncoming(g, l.end, cfg.min_overlap)) {
+                    DEBUG("Not removing link " << g.str(l) << " because end has no strong alternatives");
+                    continue;
+                }
+            }
+
+            INFO("Removing link " << g.str(l) << ". Overlaps " <<
+                l.start_overlap << " and " << l.end_overlap);
             //TODO optimize?
             g.DeleteLink(l);
             ndel++;
