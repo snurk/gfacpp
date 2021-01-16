@@ -12,6 +12,40 @@
 
 namespace gfa {
 
+inline
+char ComplementNucl(char c) {
+    switch (c) {
+        case 'A':
+            return 'T';
+        case 'a':
+            return 't';
+        case 'C':
+            return 'G';
+        case 'c':
+            return 'g';
+        case 'G':
+            return 'C';
+        case 'g':
+            return 'c';
+        case 'T':
+            return 'A';
+        case 't':
+            return 'a';
+        default:
+            return c;
+    }
+}
+
+//TODO optimize
+inline
+std::string ReverseComplement(const std::string &s) {
+    std::string answer;
+    for (int32_t i = s.size() - 1; i >= 0; --i) {
+        answer += ComplementNucl(s[i]);
+    }
+    return answer;
+}
+
 //TODO move to cpp
 class Compactifier {
     const Graph &g_;
@@ -76,6 +110,10 @@ class Compactifier {
         const auto first_seg = g_.segment(p.segments.front());
 
         std::string result = (drop_sequence || !first_seg.sequence) ? "" : std::string(first_seg.sequence);
+
+        if (p.segments.front().direction == Direction::REVERSE)
+            result = ReverseComplement(result);
+
         std::size_t total_len = first_seg.length;
 
         //TODO think more about coverage averaging computation
@@ -98,11 +136,19 @@ class Compactifier {
                 coverage += coverage_f_(seg_info.name) * seg_info.length;
             }
             if (!result.empty()) {
-                std::string trimmed(seg_info.sequence + trim);
+                std::string trimmed;
+
+                //FIXME optimize
+                if (l.end.direction == Direction::FORWARD)
+                    trimmed = std::string(seg_info.sequence + trim);
+                else
+                    trimmed = ReverseComplement(std::string(seg_info.sequence)).substr(trim);
+
                 assert(trimmed.size() == seg_info.length - trim);
                 result += trimmed;
             }
         }
+        assert(result.size() == total_len);
         return std::make_tuple(result, total_len, coverage / len_sum);
     }
 
