@@ -69,10 +69,12 @@ public:
 };
 
 typedef std::unordered_map<std::string, double> SegmentCoverageMap;
-inline auto ReadCoverage(std::string fn) {
+
+inline
+SegmentCoverageMap ReadCoverage(std::string fn) {
     SegmentCoverageMap segment_coverage;
     std::string seg_name;
-    uint32_t cov;
+    double cov;
 
     std::ifstream is(fn);
 
