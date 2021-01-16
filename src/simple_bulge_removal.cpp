@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
             return false;
         }
 
-        assert(alt.min_overlap() > 0 && base.min_overlap() > 0);
+        //assert(alt.min_overlap() > 0 && base.min_overlap() > 0);
         if (alt.min_overlap() < base.min_overlap() && alt.min_overlap() < cfg.min_alt_overlap) {
             DEBUG("Minimal overlap along the 'alt' path " << g.str(alt)
                 << " was shorter than for the 'base' path " << g.str(base)
