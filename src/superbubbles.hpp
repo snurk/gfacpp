@@ -7,6 +7,7 @@
 #include "utils.hpp"
 
 #include <utility>
+#include <functional>
 #include <map>
 #include <set>
 
@@ -14,11 +15,15 @@ namespace bubbles {
 
 //TODO update to pseudo-code from miniasm paper
 class SuperbubbleFinder {
+public:
     typedef gfa::DirectedSegment DirectedSegment;
+    typedef std::function<double (DirectedSegment)> SegmentCoverageF;
     typedef gfa::LinkInfo LinkInfo;
 
+private:
     const gfa::Graph& g_;
     DirectedSegment start_vertex_;
+    SegmentCoverageF segment_cov_;
     size_t max_length_;
     size_t max_diff_;
     size_t max_count_;
@@ -26,7 +31,7 @@ class SuperbubbleFinder {
     size_t cnt_;
     //TODO think of alternative definitions of weight (currently: total k-mer multiplicity)
     //vertex to heaviest path weight / path length range
-    std::map<DirectedSegment, std::pair<int64_t, Range>> superbubble_vertices_;
+    std::map<DirectedSegment, std::pair<double, Range>> superbubble_vertices_;
     std::map<DirectedSegment, LinkInfo> heaviest_backtrace_;
     DirectedSegment end_vertex_;
 
@@ -80,10 +85,11 @@ class SuperbubbleFinder {
     }
 
 public:
-    SuperbubbleFinder(const gfa::Graph& g, DirectedSegment v,
+    SuperbubbleFinder(const gfa::Graph& g, DirectedSegment v, SegmentCoverageF segment_cov = nullptr,
                       size_t max_length = -1ull, size_t max_diff = -1ull, size_t max_count = -1ull)
             : g_(g),
               start_vertex_(v),
+              segment_cov_(segment_cov),
               max_length_(max_length),
               max_diff_(max_diff),
               max_count_(max_count),
@@ -98,7 +104,12 @@ public:
             return false;
         }
         DEBUG("Adding starting vertex " << g_.str(start_vertex_) << " to dominated set");
-        superbubble_vertices_[start_vertex_] = std::make_pair(std::numeric_limits<int32_t>::max(), Range(0, 0));
+        if (segment_cov_) {
+            superbubble_vertices_[start_vertex_] = std::make_pair(segment_cov_(start_vertex_), Range(0, 0));
+        } else {
+            superbubble_vertices_[start_vertex_] = std::make_pair(std::numeric_limits<double>::max(), Range(0, 0));
+        }
+
         heaviest_backtrace_[start_vertex_] = LinkInfo();
         cnt_++;
         std::set<DirectedSegment> can_be_processed;
@@ -131,7 +142,7 @@ public:
             DEBUG("Counting distance range for vertex " << g_.str(v));
             size_t min_d = std::numeric_limits<size_t>::max();
             size_t max_d = 0;
-            int32_t max_w = 0;
+            double max_w = -1.;
             LinkInfo best_entrance;
 
             assert(g_.incoming_link_cnt(v) > 0);
@@ -149,7 +160,7 @@ public:
                 }
                 ++used_incoming_cnt;
 
-                int32_t weight;
+                double weight;
                 Range range;
                 std::tie(weight, range) = utils::get(superbubble_vertices_, neighbour_v);
                 range.shift(int64_t(l.end_overlap) < int64_t(g_.segment_length(v)) ? (int64_t) g_.segment_length(v) - l.end_overlap : 1);
@@ -159,8 +170,13 @@ public:
                 if (range.end_pos > max_d)
                     max_d = range.end_pos;
 
-                //path weight is the minimal overlap size along the path
-                weight = std::min(weight, l.end_overlap);
+                if (segment_cov_) {
+                    //path weight is the minimal segment coverage along the path
+                    weight = std::min(weight, segment_cov_(v));
+                } else {
+                    //path weight is the minimal overlap size along the path
+                    weight = std::min(weight, double(l.end_overlap));
+                }
 
                 if (weight > max_w) {
                     max_w = weight;

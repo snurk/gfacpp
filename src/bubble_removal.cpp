@@ -11,6 +11,7 @@
 struct cmd_cfg: public tooling::cmd_cfg_base {
     size_t max_length = 0;
     size_t max_diff = 0;
+    bool use_coverage = false;
 };
 
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
@@ -21,6 +22,7 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
             cfg.graph_out << value("output file"),
             (option("--max-length") & integer("value", cfg.max_length)) % "max (additional) bubble path length (default 20000)",
             (option("--max-diff") & integer("value", cfg.max_diff)) % "max bubble path length difference (default: 2000)",
+            option("--use-coverage").set(cfg.use_coverage) % "use coverage instead of overlap sizes (default: false)",
             (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
             option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
             (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
@@ -31,6 +33,11 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     );
 
     auto result = parse(argc, argv, cli);
+    if (cfg.use_coverage && cfg.coverage.empty()) {
+        std::cerr << "Option to use coverage values was enabled, but coverage file wasn't provided" << std::endl;
+        exit(2);
+    }
+
     if (!result) {
         std::cerr << "Super-bubble removal" << std::endl;
         std::cerr << make_man_page(cli, argv[0]);
@@ -55,7 +62,13 @@ int main(int argc, char *argv[]) {
     g.open(cfg.graph_in);
     std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << std::endl;
 
-    //std::set<std::string> neighbourhood;
+    bubbles::SuperbubbleFinder::SegmentCoverageF segment_cov_f;
+    if (cfg.use_coverage) {
+        assert(segment_cov_ptr);
+        segment_cov_f = [&](gfa::DirectedSegment v) {
+            return double(utils::get(*segment_cov_ptr, g.segment_name(v)));
+        };
+    }
 
     std::cout << "Searching for bubbles" << std::endl;
     std::set<gfa::DirectedSegment> v_in_bubble;
@@ -70,7 +83,7 @@ int main(int argc, char *argv[]) {
             DEBUG("Not considering. Was part of bubble.");
             continue;
         }
-        bubbles::SuperbubbleFinder finder(g, v, cfg.max_length, cfg.max_diff);
+        bubbles::SuperbubbleFinder finder(g, v, segment_cov_f, cfg.max_length, cfg.max_diff);
         if (finder.FindSuperbubble()) {
             std::cout << "Found superbubble between " << g.str(finder.start_vertex()) << " and " << g.str(finder.end_vertex()) << std::endl;
             for (gfa::DirectedSegment v : finder.segments()) {
