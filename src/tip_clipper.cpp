@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     };
 
     for (gfa::DirectedSegment ds : g.directed_segments()) {
-        DEBUG("Looking at vertex " << g.str(v));
+        DEBUG("Looking at node " << g.str(ds));
         if (is_tip(ds)) {
             INFO("Found tip " << g.str(ds));
             g.DeleteSegment(ds);

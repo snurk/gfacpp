@@ -36,11 +36,14 @@ void OutputGraph(gfa::Graph &g,
     if (ndel != size_t(-1))
         std::cout << "Triggered " << ndel << " times" << std::endl;
 
-    if (ndel > 0)
+    if (ndel > 0) {
+        std::cout << "Cleanup" << std::endl;
         g.Cleanup();
+    }
 
     assert(g.CheckNoDeadLinks());
 
+    std::cout << "Writing complete" << std::endl;
     if (ndel > 0 && cfg.compact) {
         gfa::Compactifier compactifier(g, cfg.compacted_prefix, segment_cov_ptr);
         std::cout << "Writing compacted graph to " << cfg.graph_out << std::endl;

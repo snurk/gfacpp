@@ -51,15 +51,17 @@ int main(int argc, char *argv[]) {
     size_t ndel = 0;
 
     std::cout << "Nodes with coverage below " << cfg.cov_thr <<
-            " and shorter than " << cfg.max_length << "bp will be removed" << std::endl;
+            " no longer than " << cfg.max_length << "bp will be removed" << std::endl;
 
     for (gfa::DirectedSegment ds : g.directed_segments()) {
-        if (ds.direction == gfa::Direction::REVERSE)
+        //DEBUG("Processing segment " << g.str(ds) << " of length " << g.segment_length(ds));
+        if (ds.direction == gfa::Direction::REVERSE || g.segment_length(ds) > cfg.max_length)
             continue;
 
-        if (double(utils::get(segment_cov, g.segment_name(ds))) < cfg.cov_thr
-                    && g.segment_length(ds) < cfg.max_length) {
-            INFO("Will remove node " << g.str(ds));
+        double cov = utils::get(segment_cov, g.segment_name(ds));
+        //DEBUG("Segment " << g.str(ds) << " with coverage " << cov);
+        if (cov < cfg.cov_thr) {
+            INFO("Will remove node " << g.str(ds) << " of length " << g.segment_length(ds) << " with coverage " << cov);
             g.DeleteSegment(ds);
             ndel++;
         }
