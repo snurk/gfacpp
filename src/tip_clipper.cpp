@@ -9,6 +9,7 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
     size_t max_length = 10000;
     std::string read_cnt_file;
     uint32_t max_read_cnt = 0;
+    double cov_thr = -1.;
 };
 
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
@@ -20,6 +21,7 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
             (option("--max-length") & integer("value", cfg.max_length)) % "tip length threshold (default: 10Kb)",
             (option("--read-cnt-file") & value("value", cfg.read_cnt_file)) % "file with read counts",
             (option("--max-read-cnt") & integer("value", cfg.max_read_cnt)) % "max read count (default: 0)",
+            (option("--cov-thr") & number("value", cfg.cov_thr)) % "coverage upper bound (exclusive, default: -1. -- disabled)",
             (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
             option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
             (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
@@ -39,6 +41,13 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     if (cfg.max_read_cnt > 0 && cfg.read_cnt_file.empty()) {
         std::cerr << "Non-trivial threshold on read counts requires read-cnt-file to be provided" << std::endl;
         exit(2);
+    }
+
+    if (cfg.cov_thr >= 0.) {
+        if (cfg.coverage.empty()) {
+            std::cerr << "Provide --coverage file\n";
+            exit(2);
+        }
     }
 }
 
@@ -65,7 +74,10 @@ int main(int argc, char *argv[]) {
 
     size_t ndel = 0;
 
-    std::cout << "Searching for tips" << std::endl;
+    std::cout << "Searching for tips with (adjusted for overlap size) length below " << cfg.max_length << std::endl;
+
+    if (cfg.cov_thr >= 0.)
+        std::cout << "Only segments with coverage below " << cfg.cov_thr << " will be considered" << std::endl;
 
 //if max_length == 0 check returns false
 //TODO improve to support multiple outgoing links
@@ -83,21 +95,35 @@ int main(int argc, char *argv[]) {
         if (g.incoming_link_cnt(n) == 1)
             return false;
 
+        if (g.segment_length(v) >= cfg.max_length + l.start_overlap) {
+            DEBUG("Length of segment " << g.str(v) << " " <<
+                    g.segment_length(v) << "bp (adjusted for overlap size " <<
+                    l.start_overlap << "bp) exceeded tip length threshold of " <<
+                    cfg.max_length << "bp");
+            return false;
+        }
+
         if (!cfg.read_cnt_file.empty()) {
             uint32_t read_cnt = utils::get(*read_cnt_ptr, g.segment_name(v));
             if (read_cnt > cfg.max_read_cnt) {
-                DEBUG("Node " << g.str(v) << " consisting of too many reads: " << read_cnt);
+                DEBUG("Segment " << g.str(v) << " consisting of too many reads: " << read_cnt);
                 return false;
             }
         }
 
-        return g.segment_length(v) < cfg.max_length + l.start_overlap;
+        if (cfg.cov_thr >= 0. && utils::get(*segment_cov_ptr, g.segment_name(v)) >= cfg.cov_thr) {
+            DEBUG("Coverage of segment " << g.str(v) << " exceeded upper bound");
+            return false;
+        }
+
+        return true;
     };
 
     for (gfa::DirectedSegment ds : g.directed_segments()) {
         DEBUG("Looking at node " << g.str(ds));
         if (is_tip(ds)) {
             INFO("Found tip " << g.str(ds));
+            INFO("Removing segment " << g.str(ds));
             g.DeleteSegment(ds);
             ndel++;
         }
