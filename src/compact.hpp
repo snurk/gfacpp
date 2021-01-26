@@ -51,6 +51,7 @@ class Compactifier {
     const Graph &g_;
     const std::string name_prefix_;
     std::function<double (const std::string&)> coverage_f_;
+    const bool normalize_ovls_;
 
     LinkInfo NonbranchingExtension(DirectedSegment v) const {
         if (g_.unique_outgoing(v)) {
@@ -159,8 +160,9 @@ class Compactifier {
 public:
     Compactifier(const Graph &g,
                  std::string name_prefix = "m_",
-                 const utils::SegmentCoverageMap *segment_cov_ptr = nullptr):
-        g_(g), name_prefix_(std::move(name_prefix)) {
+                 const utils::SegmentCoverageMap *segment_cov_ptr = nullptr,
+                 bool normalize_ovls = false):
+        g_(g), name_prefix_(std::move(name_prefix)), normalize_ovls_(normalize_ovls) {
         if (segment_cov_ptr) {
             coverage_f_ = [&](const std::string &s_name) {
                 assert(segment_cov_ptr);
@@ -192,14 +194,14 @@ public:
             std::set<SegmentId> used_segments;
             size_t compact_cnt = 0;
             for (gfa::DirectedSegment v : g_.directed_segments()) {
+                if (g_.segment(v).removed()) {
+                    //WARN("Graph had removed segment " << g_.str(v));
+                    continue;
+                }
+
                 //TODO add forward-only iterator
                 if (v.direction == gfa::Direction::REVERSE || used_segments.count(v.segment_id))
                     continue;
-
-                if (g_.segment(v).removed()) {
-                    WARN("Graph had removed segments");
-                    continue;
-                }
 
                 auto nb_path = NonbranchingPath(v);
                 for (auto ds: nb_path.segments) {
@@ -275,12 +277,21 @@ public:
 
                 if (inner_links.count(l) || inner_links.count(l.Complement()))
                     continue;
-                DEBUG("Processing link " << g_.str(l));
+                DEBUG("Processing link " << g_.str(l) << " overlap size " << l.overlap());
+                assert(l.overlap() >= 0 && g_.segment_length(l.start) > 0 && g_.segment_length(l.end) > 0);
+                auto ovl_bound = std::min(g_.segment_length(l.start), g_.segment_length(l.end)) - 1;
+                auto ovl = size_t(l.overlap());
+                if (normalize_ovls_ && ovl > ovl_bound) {
+                    //TODO potentially could have checked against lengths of the compacted sequences
+                    WARN("Overlap for link " << g_.str(l) << " of size " << ovl <<
+                            "bp will be trimmed to " << ovl_bound << "bp (trimming " << (ovl - ovl_bound) << "bp)");
+                    ovl = ovl_bound;
+                }
 
                 //TODO support CIGAR?
                 out <<"L\t" << get_compacted(l.start)
                     << "\t" << get_compacted(l.end)
-                    << "\t" << l.overlap() << "M" << "\n";
+                    << "\t" << ovl << "M" << "\n";
             }
         }
     }

@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Segment cnt: " << g.segment_cnt() << "; link cnt: " << g.link_cnt() << std::endl;
     //gfa::CompactAndWrite(g, out_fn);
-    gfa::Compactifier compactifier(g, cfg.compacted_prefix, segment_cov_ptr.get());
+    gfa::Compactifier compactifier(g, cfg.compacted_prefix, segment_cov_ptr.get(), /*normalize overlaps*/true);
     std::cout << "Writing compacted graph to " << out_fn << std::endl;
     compactifier.Compact(out_fn, cfg.id_mapping, cfg.drop_sequence);
     std::cout << "Writing complete" << std::endl;
