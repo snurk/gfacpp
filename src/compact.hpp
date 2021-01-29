@@ -49,7 +49,7 @@ std::string ReverseComplement(const std::string &s) {
 //TODO move to cpp
 class Compactifier {
     const Graph &g_;
-    const std::string name_prefix_;
+    std::string name_prefix_;
     std::function<double (const std::string&)> coverage_f_;
     const bool normalize_ovls_;
 
@@ -126,11 +126,12 @@ class Compactifier {
 
         for (auto l : p.links) {
             const auto seg_info = g_.segment(l.end);
+            assert(seg_info.length > 0);
             assert(l.end_overlap >= 0);
             if (uint32_t(l.end_overlap) >= seg_info.length) {
                 WARN("Overlap is longer than (or equal to) segment");
             }
-            auto trim = std::min(seg_info.length, uint32_t(l.end_overlap));
+            auto trim = std::min(seg_info.length - 1, uint32_t(l.end_overlap));
             total_len += seg_info.length - trim;
             len_sum += seg_info.length;
             if (coverage_f_) {
@@ -164,16 +165,20 @@ public:
                  bool normalize_ovls = false):
         g_(g), name_prefix_(std::move(name_prefix)), normalize_ovls_(normalize_ovls) {
         if (segment_cov_ptr) {
-            coverage_f_ = [&](const std::string &s_name) {
+            coverage_f_ = [=](const std::string &s_name) {
                 assert(segment_cov_ptr);
                 return double(utils::get(*segment_cov_ptr, s_name));
             };
         }
+
+        if (name_prefix_ == "_")
+            name_prefix_ = "";
     }
 
     void Compact(const std::string &out_fn,
                  const std::string &mapping_fn = "",
-                 bool drop_sequence = false) const {
+                 bool drop_sequence = false,
+                 bool rename_all = false) const {
 
         //Do not forget to check both link and complement
         std::set<LinkInfo> inner_links;
@@ -194,14 +199,17 @@ public:
             std::set<SegmentId> used_segments;
             size_t compact_cnt = 0;
             for (gfa::DirectedSegment v : g_.directed_segments()) {
+                DEBUG("Considering segment " << g_.str(v));
                 if (g_.segment(v).removed()) {
-                    //WARN("Graph had removed segment " << g_.str(v));
+                    DEBUG("Removed segment " << g_.str(v));
                     continue;
                 }
 
                 //TODO add forward-only iterator
-                if (v.direction == gfa::Direction::REVERSE || used_segments.count(v.segment_id))
+                if (v.direction == gfa::Direction::REVERSE || used_segments.count(v.segment_id)) {
+                    DEBUG("Skipping " << g_.str(v));
                     continue;
+                }
 
                 auto nb_path = NonbranchingPath(v);
                 for (auto ds: nb_path.segments) {
@@ -210,6 +218,7 @@ public:
                 }
 
                 for (auto l: nb_path.links) {
+                    DEBUG("Adding inner link " << g_.str(l));
                     inner_links.insert(l);
                 }
 
@@ -219,12 +228,12 @@ public:
                 assert(start != end || nb_path.links.empty());
 
                 std::string name;
-                if (nb_path.links.empty()) {
+                if (nb_path.links.empty() && !rename_all) {
                     //keeping the name if trivial path
                     name = g_.segment_name(start);
                 } else {
-                    name = FormName(compact_cnt++);
-                    INFO("Compacting path " << g_.str(nb_path) << " into " << name);
+                    name = FormName(++compact_cnt);
+                    DEBUG("Compacting path " << g_.str(nb_path) << " into " << name);
                     if (!mapping_fn.empty()) {
                         mapping_out << name << " " << g_.str(nb_path, ",") << "\n";
                     }
@@ -258,6 +267,9 @@ public:
         }
 
         auto get_compacted = [&] (DirectedSegment v) {
+            //if (orig2new.count(v.segment_id) == 0) {
+            //    WARN("Couldn't find corresponding new unitig for " << g_.str(v));
+            //}
             auto new_id_o = utils::get(orig2new, v.segment_id);
             auto d = v.direction;
             if (!new_id_o.second)
