@@ -13,8 +13,9 @@ static void process_cmdline(int argc, char **argv,
             cfg.graph_out << value("output file"),
             (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
             (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
-            (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
-            option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)"
+            (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names (default: m_, use _ for empty)",
+            option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)",
+            option("--rename-all").set(cfg.rename_all) % "flag to rename all segments (default: false)"
             //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
     );
 
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]) {
     //gfa::CompactAndWrite(g, out_fn);
     gfa::Compactifier compactifier(g, cfg.compacted_prefix, segment_cov_ptr.get(), /*normalize overlaps*/true);
     std::cout << "Writing compacted graph to " << out_fn << std::endl;
-    compactifier.Compact(out_fn, cfg.id_mapping, cfg.drop_sequence);
+    compactifier.Compact(out_fn, cfg.id_mapping, cfg.drop_sequence, cfg.rename_all);
     std::cout << "Writing complete" << std::endl;
     std::cout << "Done" << std::endl;
 }

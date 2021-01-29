@@ -27,6 +27,9 @@ struct cmd_cfg_base {
 
     //flag to drop sequences even if present in original file
     bool drop_sequence = false;
+
+    //flag to drop sequences even if present in original file
+    bool rename_all = false;
 };
 
 void OutputGraph(gfa::Graph &g,
