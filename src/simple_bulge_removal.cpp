@@ -36,6 +36,9 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
     //if set to << 1. will only remove low coverage variants
     //if set to > 1. ensures that the coverage of the removed node is no more than X times higher than of the retained one
     double max_coverage_ratio = std::numeric_limits<double>::max();
+
+    //flag to use coverage values instead of overlap sizes to prioritize segments
+    bool use_coverage = false;
 };
 
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
@@ -52,6 +55,7 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
       option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)",
       (option("-l", "--max-length") & integer("length", cfg.max_length)) % "check that length contributed by the node is below <length>",
       (option("-d", "--max-diff") & integer("value", cfg.max_diff)) % "check that length difference between paths is below <value>",
+      option("--use-coverage").set(cfg.use_coverage) % "use coverage instead of overlap sizes (default: false)",
       //(option("--max-rel-diff") & number("frac", cfg.max_rel_diff)) % "check that relative length difference between paths is below <frac>",
       (option("--max-shortening") & integer("value", cfg.max_shortening)) % "check that base is no more than <value>bp longer (setting to 0 forces only longer alternatives)",
       //(option("--max-rel-shortening") & number("frac", cfg.max_rel_alt_increase)) % "check that base is no more than <frac> longer (setting to 0. forces only longer alternatives)",
@@ -66,6 +70,11 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
 
 
   auto result = parse(argc, argv, cli);
+  if (cfg.use_coverage && cfg.coverage.empty()) {
+      std::cerr << "Option to use coverage values was enabled, but coverage file wasn't provided" << std::endl;
+      exit(2);
+  }
+
   if (!result) {
       std::cerr << make_man_page(cli, argv[0]);
       exit(1);
@@ -188,24 +197,30 @@ int main(int argc, char *argv[]) {
     //std::set<std::string> neighbourhood;
     std::set<gfa::SegmentId> protected_segments;
 
+    auto cov_f = [&](gfa::DirectedSegment v) {
+        assert(segment_cov_ptr);
+        return double(utils::get(*segment_cov_ptr, g.segment_name(v)));
+    };
+
     //min(unique_left_ovl, unique_right_ovl) & segment_id
-    std::vector<std::pair<int32_t, gfa::SegmentId>> segments_of_interest;
+    std::vector<std::pair<double, gfa::SegmentId>> segments_of_interest;
     segments_of_interest.reserve(g.segment_cnt());
     for (gfa::SegmentId s = 0; s < g.segment_cnt(); ++s) {
         gfa::DirectedSegment v(s, gfa::Direction::FORWARD);
         if (g.unique_outgoing(v) && g.unique_incoming(v)) {
-            int32_t min_ovl = std::min((*g.outgoing_begin(v)).start_overlap, (*g.incoming_begin(v)).end_overlap);
-            segments_of_interest.push_back(std::make_pair(min_ovl, s));
+            double weight;
+            if (cfg.use_coverage) {
+                weight = cov_f(v);
+            } else {
+                int32_t min_ovl = std::min((*g.outgoing_begin(v)).start_overlap, (*g.incoming_begin(v)).end_overlap);
+                weight = double(min_ovl);
+            }
+            segments_of_interest.push_back(std::make_pair(weight, s));
         }
     }
 
     //sort in order of increased min overlaps
     std::sort(segments_of_interest.begin(), segments_of_interest.end());
-
-    auto cov_f = [&](gfa::DirectedSegment v) {
-        assert(segment_cov_ptr);
-        return double(utils::get(*segment_cov_ptr, g.segment_name(v)));
-    };
 
     auto inner_cov_f = [&](const gfa::Path &p) {
         assert(p.segment_cnt() >= 3);
