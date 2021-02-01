@@ -7,6 +7,7 @@
 #include <fstream>
 
 //#define DEBUG_LOGGING 1
+//#define TRACE_LOGGING 1
 
 #define LOG_MSG(msg)                                                    \
   do {                                                                  \
@@ -17,6 +18,12 @@
 # define DEBUG(message)                      LOG_MSG(message)
 #else
 # define DEBUG(message)                      {}/* No trace */
+#endif
+
+#if defined DEBUG_LOGGING && defined TRACE_LOGGING
+# define TRACE(message)                      LOG_MSG(message)
+#else
+# define TRACE(message)                      {}/* No trace */
 #endif
 
 # define INFO(message)                      LOG_MSG(message)
@@ -81,7 +88,7 @@ SegmentCoverageMap ReadCoverage(std::string fn) {
     while (is >> seg_name >> cov) {
         segment_coverage[seg_name] = cov;
 
-        //std::cout << "Populating coverage with " << seg_name << " and " << cov << std::endl;
+        TRACE("Populating coverage with '" << seg_name << "' and " << cov);
     }
 
     return segment_coverage;
