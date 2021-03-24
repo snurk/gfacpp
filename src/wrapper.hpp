@@ -205,6 +205,7 @@ struct LinkInfo {
         return LinkInfo(a);
     }
 
+    //FIXME consider dropping start/end overlap checks -- running into issues with invalid overlaps
     bool operator==(const LinkInfo &rhs) const {
         return start == rhs.start && end == rhs.end
             && start_overlap == rhs.start_overlap
@@ -529,6 +530,7 @@ public:
 
     std::string str(const LinkInfo &l, const std::string &d = "->") const {
         return str(l.start) + d + str(l.end);
+        // + " (s_o: " + std::to_string(l.start_overlap) + ", e_o:" + std::to_string(l.end_overlap) + ")";
     }
 
     std::string str(const Path &p, const std::string &d = " -> ") const {

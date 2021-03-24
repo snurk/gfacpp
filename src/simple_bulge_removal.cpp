@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    //sort in order of increased min overlaps
+    //sort in order of increased min overlaps or coverage
     std::sort(segments_of_interest.begin(), segments_of_interest.end());
 
     auto inner_cov_f = [&](const gfa::Path &p) {
