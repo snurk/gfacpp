@@ -52,6 +52,8 @@ class Compactifier {
     std::string name_prefix_;
     std::function<double (const std::string&)> coverage_f_;
     const bool normalize_ovls_;
+    //Vertex size, enables DBG mode of coverage transformation
+    const int32_t k_;
 
     LinkInfo NonbranchingExtension(DirectedSegment v) const {
         if (g_.unique_outgoing(v)) {
@@ -121,7 +123,7 @@ class Compactifier {
         std::size_t len_sum = total_len;
         double coverage = 0.;
         if (coverage_f_) {
-            coverage += coverage_f_(first_seg.name) * first_seg.length;
+            coverage += coverage_f_(first_seg.name) * (first_seg.length - k_);
         }
 
         for (auto l : p.links) {
@@ -131,11 +133,12 @@ class Compactifier {
             if (uint32_t(l.end_overlap) >= seg_info.length) {
                 WARN("Overlap is longer than (or equal to) segment");
             }
+            assert(k_ == 0 || l.end_overlap == k_);
             auto trim = std::min(seg_info.length - 1, uint32_t(l.end_overlap));
             total_len += seg_info.length - trim;
             len_sum += seg_info.length;
             if (coverage_f_) {
-                coverage += coverage_f_(seg_info.name) * seg_info.length;
+                coverage += coverage_f_(seg_info.name) * (seg_info.length - k_);
             }
             if (!result.empty()) {
                 std::string trimmed;
@@ -151,7 +154,8 @@ class Compactifier {
             }
         }
         assert(result.size() == total_len);
-        return std::make_tuple(result, total_len, coverage / len_sum);
+        std::size_t denom = (k_ == 0) ? len_sum : (total_len - k_);
+        return std::make_tuple(result, total_len, coverage / denom);
     }
 
     std::string FormName(std::size_t compact_cnt) const {
@@ -162,8 +166,9 @@ public:
     Compactifier(const Graph &g,
                  std::string name_prefix = "m_",
                  const utils::SegmentCoverageMap *segment_cov_ptr = nullptr,
-                 bool normalize_ovls = false):
-        g_(g), name_prefix_(std::move(name_prefix)), normalize_ovls_(normalize_ovls) {
+                 bool normalize_ovls = false,
+                 int32_t k = 0):
+        g_(g), name_prefix_(std::move(name_prefix)), normalize_ovls_(normalize_ovls), k_(k) {
         if (segment_cov_ptr) {
             coverage_f_ = [=](const std::string &s_name) {
                 assert(segment_cov_ptr);
