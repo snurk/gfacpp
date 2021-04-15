@@ -5,7 +5,7 @@ ODIR:=build
 DEPS:=src/*.hpp
 #SRCS=$(wildcard src/*.cpp)
 #EXECS=$(patsubst src/%.cpp,$(ODIR)/%,$(SRCS))
-EXECS:=test weak_removal unbalanced_removal simple_bulge_removal bubble_removal shortcut_remover loop_killer nongenomic_link_removal tip_clipper low_cov_remover isolated_remover
+EXECS:=test unambig_extension weak_removal unbalanced_removal simple_bulge_removal bubble_removal shortcut_remover loop_killer nongenomic_link_removal tip_clipper low_cov_remover isolated_remover
 
 LEGACY_DEPS:=src/legacy/*.hpp gfakluge/*.hpp
 LEGACY_EXECS:=neighborhood path_length #bubble_finder

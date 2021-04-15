@@ -46,6 +46,130 @@ std::string ReverseComplement(const std::string &s) {
     return answer;
 }
 
+inline
+std::string PathSequence(const Graph &g, const Path &p) {
+    assert(!p.segments.empty());
+    const auto first_seg = g.segment(p.segments.front());
+
+    std::string result = !first_seg.sequence ? "" : std::string(first_seg.sequence);
+
+    if (p.segments.front().direction == Direction::REVERSE)
+        result = ReverseComplement(result);
+
+    for (auto l : p.links) {
+        const auto seg_info = g.segment(l.end);
+        assert(seg_info.length > 0);
+        assert(l.end_overlap >= 0);
+        if (uint32_t(l.end_overlap) >= seg_info.length) {
+            WARN("Overlap is longer than (or equal to) segment");
+        }
+        auto trim = std::min(seg_info.length - 1, uint32_t(l.end_overlap));
+
+        if (!result.empty()) {
+            std::string trimmed;
+
+            //FIXME optimize
+            if (l.end.direction == Direction::FORWARD)
+                trimmed = std::string(seg_info.sequence + trim);
+            else
+                trimmed = ReverseComplement(std::string(seg_info.sequence)).substr(trim);
+
+            assert(trimmed.size() == seg_info.length - trim);
+            result += trimmed;
+        }
+    }
+    return result;
+}
+
+class UnambiguousFinder {
+    const Graph &g_;
+
+    LinkInfo UnambigExtension(DirectedSegment v) const {
+        if (g_.unique_outgoing(v)) {
+            auto l = *g_.outgoing_begin(v);
+            DEBUG("Unambiguous extension link " << g_.str(l)
+                << " found for segment " << g_.str(v));
+            return l;
+        }
+        return LinkInfo();
+    }
+
+    Path UnambigForward(DirectedSegment v_init) const {
+        DEBUG("Searching for non-branching path forward from " << g_.str(v_init));
+        std::set<SegmentId> used;
+        used.insert(v_init.segment_id);
+        Path ua_path(v_init);
+        LinkInfo l;
+        auto v = v_init;
+        while ((l = UnambigExtension(v)) != LinkInfo()) {
+            v = l.end;
+            if (used.count(v.segment_id) == 0) {
+                DEBUG("Extending path by " << g_.str(l));
+                ua_path.Extend(l);
+            } else {
+                DEBUG("Cycle detected, couldn't extend beyond " << g_.str(l.start));
+                break;
+            }
+        }
+        return ua_path;
+    }
+
+    Path UnambigPath(DirectedSegment v_init) const {
+        //TODO optimize by picking appropriate starts?
+        DEBUG("Searching around " << g_.str(v_init));
+        DEBUG("First searching backward");
+        auto ua_path = UnambigForward(v_init.Complement()).Complement();
+        assert(ua_path.segments.back() == v_init);
+        if (g_.unique_outgoing(v_init) &&
+                (*g_.outgoing_begin(v_init)).end == ua_path.segments.front()) {
+            DEBUG("Loop detected, not traversing twice");
+            return ua_path;
+        }
+
+        DEBUG("Then searching forward");
+        for (auto l : UnambigForward(v_init).links) {
+            ua_path.Extend(l);
+        }
+        assert(!ua_path.empty());
+        return ua_path;
+    }
+
+public:
+    UnambiguousFinder(const Graph &g): g_(g) {}
+
+    void OutputUnambiguous(const std::string &fn) const {
+        std::ofstream out(fn);
+        for (gfa::DirectedSegment v : g_.directed_segments()) {
+            DEBUG("Considering segment " << g_.str(v));
+            //TODO remove?
+            if (g_.segment(v).removed()) {
+                DEBUG("Removed segment " << g_.str(v));
+                continue;
+            }
+
+            //TODO add forward-only iterator
+            if (v.direction == gfa::Direction::REVERSE) {
+                DEBUG("Skipping " << g_.str(v));
+                continue;
+            }
+
+            auto ua_path = UnambigPath(v);
+            assert(!ua_path.segments.empty());
+
+            //TODO remove?
+            for (auto ds: ua_path.segments) {
+                assert(!g_.segment(ds).removed());
+            }
+
+            std::string name = ">" + g_.segment_name(v) + "_ext";
+            std::string seq = PathSequence(g_, ua_path);
+            assert(!seq.empty());
+            out << name << '\n' << seq << '\n';
+        }
+    }
+
+};
+
 //TODO move to cpp
 class Compactifier {
     const Graph &g_;
@@ -111,12 +235,6 @@ class Compactifier {
                                                                    bool drop_sequence) const {
         assert(!p.segments.empty());
         const auto first_seg = g_.segment(p.segments.front());
-
-        std::string result = (drop_sequence || !first_seg.sequence) ? "" : std::string(first_seg.sequence);
-
-        if (p.segments.front().direction == Direction::REVERSE)
-            result = ReverseComplement(result);
-
         std::size_t total_len = first_seg.length;
 
         //TODO think more about coverage averaging computation
@@ -140,20 +258,11 @@ class Compactifier {
             if (coverage_f_) {
                 coverage += coverage_f_(seg_info.name) * (seg_info.length - k_);
             }
-            if (!result.empty()) {
-                std::string trimmed;
-
-                //FIXME optimize
-                if (l.end.direction == Direction::FORWARD)
-                    trimmed = std::string(seg_info.sequence + trim);
-                else
-                    trimmed = ReverseComplement(std::string(seg_info.sequence)).substr(trim);
-
-                assert(trimmed.size() == seg_info.length - trim);
-                result += trimmed;
-            }
         }
-        assert(result.size() == total_len);
+
+        std::string result = drop_sequence ? "" : PathSequence(g_, p);
+
+        assert(result.empty() || result.size() == total_len);
         std::size_t denom = (k_ == 0) ? len_sum : (total_len - k_);
         return std::make_tuple(result, total_len, coverage / denom);
     }
@@ -169,6 +278,8 @@ public:
                  int32_t k = 0,
                  bool normalize_ovls = false):
         g_(g), name_prefix_(std::move(name_prefix)), k_(k), normalize_ovls_(normalize_ovls) {
+        assert(k_ >= 0);
+
         if (segment_cov_ptr) {
             coverage_f_ = [=](const std::string &s_name) {
                 assert(segment_cov_ptr);
