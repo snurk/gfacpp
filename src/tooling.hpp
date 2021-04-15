@@ -67,7 +67,7 @@ void OutputGraph(gfa::Graph &g,
 
     std::cout << "Writing complete" << std::endl;
     if (ndel > 0 && cfg.compact) {
-        gfa::Compactifier compactifier(g, cfg.compacted_prefix, segment_cov_ptr);
+        gfa::Compactifier compactifier(g, cfg.compacted_prefix, segment_cov_ptr, cfg.dbg_k);
         std::cout << "Writing compacted graph to " << cfg.graph_out << std::endl;
         compactifier.Compact(cfg.graph_out, cfg.id_mapping, cfg.drop_sequence);
     } else {

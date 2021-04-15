@@ -51,9 +51,9 @@ class Compactifier {
     const Graph &g_;
     std::string name_prefix_;
     std::function<double (const std::string&)> coverage_f_;
-    const bool normalize_ovls_;
     //Vertex size, enables DBG mode of coverage transformation
     const int32_t k_;
+    const bool normalize_ovls_;
 
     LinkInfo NonbranchingExtension(DirectedSegment v) const {
         if (g_.unique_outgoing(v)) {
@@ -166,9 +166,9 @@ public:
     Compactifier(const Graph &g,
                  std::string name_prefix = "m_",
                  const utils::SegmentCoverageMap *segment_cov_ptr = nullptr,
-                 bool normalize_ovls = false,
-                 int32_t k = 0):
-        g_(g), name_prefix_(std::move(name_prefix)), normalize_ovls_(normalize_ovls), k_(k) {
+                 int32_t k = 0,
+                 bool normalize_ovls = false):
+        g_(g), name_prefix_(std::move(name_prefix)), k_(k), normalize_ovls_(normalize_ovls) {
         if (segment_cov_ptr) {
             coverage_f_ = [=](const std::string &s_name) {
                 assert(segment_cov_ptr);
@@ -184,6 +184,9 @@ public:
                  const std::string &mapping_fn = "",
                  bool drop_sequence = false,
                  bool rename_all = false) const {
+        if (k_ != 0) {
+            INFO("DBG mode enabled with K=" << k_);
+        }
 
         //Do not forget to check both link and complement
         std::set<LinkInfo> inner_links;
