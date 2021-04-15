@@ -5,7 +5,6 @@
 #include <set>
 
 struct cmd_cfg: public tooling::cmd_cfg_base {
-    //coverage ratio threshold
     double max_base_coverage = 0.;
     double min_path_coverage = 0.;
 };
@@ -13,22 +12,14 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     using namespace clipp;
 
-    auto cli = (
-            //TODO change to 'uniqueness' check of the surrounding nodes (i.e. allow length-only checks)
-            cfg.graph_in << value("input file in GFA (ending with .gfa)"),
-            cfg.graph_out << value("output file"),
-            (required("--coverage") & value("file", cfg.coverage)) % "file with coverage information (required)",
+    auto cli = (std::move(tooling::BaseCfg(cfg)), (
             (required("--max-base-cov") & number("value", cfg.max_base_coverage)) % "maximal coverage of the surrounding nodes (required)",
-            (required("--min-path-cov") & number("value", cfg.min_path_coverage)) % "minimal coverage along 'alternative' path (required)",
-            option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
-            (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
-            (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
-            option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)"
-            //option("--use-cov-ratios").set(cfg.use_cov_ratios) % "enable procedures based on unitig coverage ratios (default: false)",
-            //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
-    );
+            (required("--min-path-cov") & number("value", cfg.min_path_coverage)) % "minimal coverage along 'alternative' path (required)"
+    ) % "algorithm settings");
+
 
     auto result = parse(argc, argv, cli);
+    assert(!cfg.coverage.empty());
     if (!result) {
         std::cerr << "Removing 'shortcut' links if the connected segments have coverage less than max_base_coverage "
                      "and 'start' can be accessed by an unambiguous path back passing over the nodes of coverage no less than min_path_coverage "

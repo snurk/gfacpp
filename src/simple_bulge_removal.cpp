@@ -44,18 +44,9 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
   using namespace clipp;
 
-  //TODO reduce code duplication
-  auto cli = (
-      cfg.graph_in << value("input file in GFA (ending with .gfa)"),
-      cfg.graph_out << value("output file"),
-      (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
-      option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
-      (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
-      (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
-      option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)",
+  auto cli = (std::move(tooling::BaseCfg(cfg)), (
       (option("-l", "--max-length") & integer("length", cfg.max_length)) % "check that length contributed by the node is below <length>",
       (option("-d", "--max-diff") & integer("value", cfg.max_diff)) % "check that length difference between paths is below <value>",
-      option("--use-coverage").set(cfg.use_coverage) % "use coverage instead of overlap sizes (default: false)",
       //(option("--max-rel-diff") & number("frac", cfg.max_rel_diff)) % "check that relative length difference between paths is below <frac>",
       (option("--max-shortening") & integer("value", cfg.max_shortening)) % "check that base is no more than <value>bp longer (setting to 0 forces only longer alternatives)",
       //(option("--max-rel-shortening") & number("frac", cfg.max_rel_alt_increase)) % "check that base is no more than <frac> longer (setting to 0. forces only longer alternatives)",
@@ -63,11 +54,9 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
       (option("--max-unique-cov") & number("value", cfg.max_unique_cov)) % "check that first & last node are below this coverage (coverage must be available)",
       (option("--max-cov-ratio") & number("value", cfg.max_coverage_ratio)) % "check that [node coverage / min coverage on alternative path] is below <value> (coverage must be provided)."
                                                                           "If set to << 1. (e.g. to 0.2) will only remove low coverage (5x less covered) variants,"
-                                                                          "if set to > 1. ensures that the coverage of the removed node is no more than <value> times higher than of the alternative"
-      //option("--use-cov-ratios").set(cfg.use_cov_ratios) % "enable procedures based on unitig coverage ratios (default: false)",
-      //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
-  );
-
+                                                                          "if set to > 1. ensures that the coverage of the removed node is no more than <value> times higher than of the alternative",
+      option("--use-coverage").set(cfg.use_coverage) % "use coverage instead of overlap sizes (default: false)"
+  ) % "algorithm settings");
 
   auto result = parse(argc, argv, cli);
   if (cfg.use_coverage && cfg.coverage.empty()) {

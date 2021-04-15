@@ -14,22 +14,14 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     using namespace clipp;
-    //<read counts file> <max read count>
-    auto cli = (
-            cfg.graph_in << value("input file in GFA (ending with .gfa)"),
-            cfg.graph_out << value("output file"),
+
+    auto cli = (std::move(tooling::BaseCfg(cfg)), (
             (option("--max-length") & integer("value", cfg.max_length)) % "tip length threshold (default: 10Kb)",
             (option("--read-cnt-file") & value("value", cfg.read_cnt_file)) % "file with read counts",
             (option("--max-read-cnt") & integer("value", cfg.max_read_cnt)) % "max read count (default: 0)",
-            (option("--cov-thr") & number("value", cfg.cov_thr)) % "coverage upper bound (exclusive, default: -1. -- disabled)",
-            (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
-            option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
-            (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
-            (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
-            option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)"
-            //option("--use-cov-ratios").set(cfg.use_cov_ratios) % "enable procedures based on unitig coverage ratios (default: false)",
-            //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
-    );
+            (option("--cov-thr") & number("value", cfg.cov_thr)) % "coverage upper bound (exclusive, default: -1. -- disabled)"
+                //option("--use-cov-ratios").set(cfg.use_cov_ratios) % "enable procedures based on unitig coverage ratios (default: false)",
+    ) % "algorithm settings");
 
     auto result = parse(argc, argv, cli);
     if (!result) {

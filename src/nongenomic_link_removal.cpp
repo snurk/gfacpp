@@ -27,26 +27,18 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
   using namespace clipp;
 
-  auto cli = (
-      cfg.graph_in << value("input file in GFA (ending with .gfa)"),
-      cfg.graph_out << value("output file"),
-      (option("--coverage") & value("file", cfg.coverage)) % "file with coverage information",
-      option("--compact").set(cfg.compact) % "compact the graph after cleaning (default: false)",
-      (option("--id-mapping") & value("file", cfg.id_mapping)) % "file with compacted segment id mapping",
-      (option("--prefix") & value("vale", cfg.compacted_prefix)) % "prefix used to form compacted segment names",
-      option("--drop-sequence").set(cfg.drop_sequence) % "flag to drop sequences even if present in original file (default: false)",
+  auto cli = (std::move(tooling::BaseCfg(cfg)), (
       (option("--unique-len") & integer("length", cfg.unique_len)) % "longer nodes are considered unique",
       (option("--max-unique-cov") & number("value", cfg.max_unique_cov)) % "node below this coverage is likely unique (coverage must be available)",
-      (option("--reliable-cov") & number("value", cfg.reliable_cov)) % "node above this coverage is more likely to be correct (coverage must be available)",
       (option("--reliable-len") & integer("value", cfg.reliable_len)) % "node above this length is more likely to be correct",
+      (option("--reliable-cov") & number("value", cfg.reliable_cov)) % "node above this coverage is more likely to be correct (coverage must be available)",
       (option("--reliable-ovl") & integer("value", cfg.reliable_ovl)) % "only overlaps exceeding this size are considered reliable",
       option("--both-sides").set(cfg.require_both_sides) % "only remove links that don't look genomic from both sides (default: false)"
-      //(required("-k") & integer("value", cfg.k)) % "k-mer length to use",
-  );
+  ) % "algorithm settings");
 
   auto result = parse(argc, argv, cli);
   if (!result) {
-      std::cerr << "Removing links that are unlikely to be part of 'genomic' traversal" << std::endl;
+      std::cerr << "Removing links in STRING GRAPH that are unlikely to be part of 'genomic' traversal" << std::endl;
       std::cout << make_man_page(cli, argv[0]);
       exit(1);
   }
