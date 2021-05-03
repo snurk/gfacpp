@@ -106,6 +106,7 @@ class UnambiguousFinder {
             if (used.count(v.segment_id) == 0) {
                 DEBUG("Extending path by " << g_.str(l));
                 ua_path.Extend(l);
+                used.insert(v.segment_id);
             } else {
                 DEBUG("Cycle detected, couldn't extend beyond " << g_.str(l.start));
                 break;
@@ -194,13 +195,12 @@ class Compactifier {
     Path NonbranchingForward(DirectedSegment v_init) const {
         DEBUG("Searching for non-branching path forward from " << g_.str(v_init));
         std::set<SegmentId> used;
-        used.insert(v_init.segment_id);
         Path nb_path(v_init);
         LinkInfo l;
         auto v = v_init;
         while ((l = NonbranchingExtension(v)) != LinkInfo()) {
             v = l.end;
-            if (used.count(v.segment_id) == 0) {
+            if (v.segment_id != v_init.segment_id) {
                 DEBUG("Extending path by " << g_.str(l));
                 nb_path.Extend(l);
             } else {
