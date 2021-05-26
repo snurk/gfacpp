@@ -75,21 +75,60 @@ public:
     }
 };
 
+template<class Vec>
+void ReadVec(const std::string &fn, Vec &vec) {
+    std::string seg_name;
+    typename Vec::value_type val;
+
+    std::ifstream is(fn);
+
+    while (is >> val) {
+        vec.push_back(val);
+    }
+}
+
+template<class Set>
+void ReadSet(const std::string &fn, Set &set) {
+    std::string seg_name;
+    typename Set::value_type val;
+
+    std::ifstream is(fn);
+
+    while (is >> val) {
+        set.insert(val);
+    }
+}
+
+template<class Map>
+void ReadMap(const std::string &fn, Map &map) {
+    std::string seg_name;
+    typename Map::mapped_type val;
+
+    std::ifstream is(fn);
+
+    while (is >> seg_name >> val) {
+        map[seg_name] = val;
+
+        TRACE("Populating map with '" << seg_name << "' and " << cov);
+    }
+}
+
 typedef std::unordered_map<std::string, double> SegmentCoverageMap;
 
 inline
 SegmentCoverageMap ReadCoverage(std::string fn) {
     SegmentCoverageMap segment_coverage;
-    std::string seg_name;
-    double cov;
+    ReadMap(fn, segment_coverage);
+    //std::string seg_name;
+    //double cov;
 
-    std::ifstream is(fn);
+    //std::ifstream is(fn);
 
-    while (is >> seg_name >> cov) {
-        segment_coverage[seg_name] = cov;
+    //while (is >> seg_name >> cov) {
+    //    segment_coverage[seg_name] = cov;
 
-        TRACE("Populating coverage with '" << seg_name << "' and " << cov);
-    }
+    //    TRACE("Populating coverage with '" << seg_name << "' and " << cov);
+    //}
 
     return segment_coverage;
 }

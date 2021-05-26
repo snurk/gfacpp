@@ -524,8 +524,8 @@ public:
         return std::string(segment(segment_id).name);
     }
 
-    std::string str(DirectedSegment v) const {
-        return std::string(segment(v.segment_id).name) + PrintDirection(v.direction);
+    std::string str(DirectedSegment v, const std::string &delim = "") const {
+        return std::string(segment(v.segment_id).name) + delim + PrintDirection(v.direction);
     }
 
     std::string str(const LinkInfo &l, const std::string &d = "->") const {
