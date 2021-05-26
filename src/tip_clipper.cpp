@@ -15,7 +15,7 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     using namespace clipp;
 
-    auto cli = (std::move(tooling::BaseCfg(cfg)), (
+    auto cli = (tooling::BaseCfg(cfg), (
             (option("--max-length") & integer("value", cfg.max_length)) % "tip length threshold (default: 10Kb)",
             (option("--read-cnt-file") & value("value", cfg.read_cnt_file)) % "file with read counts",
             (option("--max-read-cnt") & integer("value", cfg.max_read_cnt)) % "max read count (default: 0)",

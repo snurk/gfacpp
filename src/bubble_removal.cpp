@@ -17,7 +17,7 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     using namespace clipp;
 
-    auto cli = (std::move(tooling::BaseCfg(cfg)), (
+    auto cli = (tooling::BaseCfg(cfg), (
                 (option("--max-length") & integer("value", cfg.max_length)) % "max (additional) bubble path length (default 20000)",
                 (option("--max-diff") & integer("value", cfg.max_diff)) % "max bubble path length difference (default: 2000)",
                 option("--use-coverage").set(cfg.use_coverage) % "use coverage instead of overlap sizes (default: false)"

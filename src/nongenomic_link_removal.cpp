@@ -27,7 +27,7 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
   using namespace clipp;
 
-  auto cli = (std::move(tooling::BaseCfg(cfg)), (
+  auto cli = (tooling::BaseCfg(cfg), (
       (option("--unique-len") & integer("length", cfg.unique_len)) % "longer nodes are considered unique",
       (option("--max-unique-cov") & number("value", cfg.max_unique_cov)) % "node below this coverage is likely unique (coverage must be available)",
       (option("--reliable-len") & integer("value", cfg.reliable_len)) % "node above this length is more likely to be correct",

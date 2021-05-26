@@ -11,7 +11,7 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     using namespace clipp;
 
-    auto cli = (std::move(tooling::BaseCfg(cfg)), (
+    auto cli = (tooling::BaseCfg(cfg), (
         (required("--cov-ratio") & number("value", cfg.coverage_ratio)) % "minimal coverage ratio to keep "
                                                                           "; should be < 1., (default: 0. -- effectively disabled)"
     ) % "algorithm settings");

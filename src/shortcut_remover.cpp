@@ -12,7 +12,7 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     using namespace clipp;
 
-    auto cli = (std::move(tooling::BaseCfg(cfg)), (
+    auto cli = (tooling::BaseCfg(cfg), (
             (required("--max-base-cov") & number("value", cfg.max_base_coverage)) % "maximal coverage of the surrounding nodes (required)",
             (required("--min-path-cov") & number("value", cfg.min_path_coverage)) % "minimal coverage along 'alternative' path (required)"
     ) % "algorithm settings");

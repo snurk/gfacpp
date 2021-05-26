@@ -14,7 +14,7 @@ struct cmd_cfg: public tooling::cmd_cfg_base {
 static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
     using namespace clipp;
 
-    auto cli = (std::move(tooling::BaseCfg(cfg)), (
+    auto cli = (tooling::BaseCfg(cfg), (
             (required("--min-overlap") & integer("value", cfg.min_overlap)) % "overlap size threshold (default: 0)",
             option("--prevent-deadends").set(cfg.prevent_deadends) % "check that no new dead-ends are formed (default: false)"
     ) % "algorithm settings");
