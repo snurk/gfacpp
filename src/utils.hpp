@@ -109,7 +109,7 @@ void ReadMap(const std::string &fn, Map &map) {
     while (is >> seg_name >> val) {
         map[seg_name] = val;
 
-        TRACE("Populating map with '" << seg_name << "' and " << cov);
+        TRACE("Populating map with '" << seg_name << "' and " << val);
     }
 }
 

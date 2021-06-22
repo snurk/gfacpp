@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (seg.removed()) {
-            DEBUG("Removed segment " << g.str(seg));
+            DEBUG("Removed segment " << seg.name);
             assert(false);
             continue;
         }
