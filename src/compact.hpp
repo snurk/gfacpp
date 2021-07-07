@@ -399,7 +399,7 @@ public:
 
         for (DirectedSegment v : g_.directed_segments()) {
             if (g_.segment(v).removed()) {
-                WARN("Graph had removed segments");
+                //WARN("Graph had removed segments");
                 continue;
             }
             for (auto l : g_.outgoing_links(v)) {
