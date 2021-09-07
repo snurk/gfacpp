@@ -7,7 +7,7 @@ DEPS:=src/*.hpp
 #EXECS=$(patsubst src/%.cpp,$(ODIR)/%,$(SRCS))
 EXECS:=test neighborhood unambig_extension weak_removal unbalanced_removal simple_bulge_removal bubble_removal shortcut_remover loop_killer nongenomic_link_removal tip_clipper low_cov_remover isolated_remover
 
-all: $(patsubst %,$(ODIR)/%,$(EXECS)) $(patsubst %,$(ODIR)/%,$(LEGACY_EXECS))
+all: $(patsubst %,$(ODIR)/%,$(EXECS))
 
 #all: $EXECS
 
