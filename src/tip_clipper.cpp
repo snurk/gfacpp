@@ -1,4 +1,5 @@
 #include "tooling.hpp"
+#include "common_algo.hpp"
 
 #include <vector>
 #include <set>
@@ -7,8 +8,9 @@
 struct cmd_cfg: public tooling::cmd_cfg_base {
     //coverage ratio threshold
     size_t max_length = 10000;
+    size_t min_unambig_length = 0;
     std::string read_cnt_file;
-    uint32_t max_read_cnt = 0;
+    uint32_t max_read_cnt = uint32_t(-1);
     double cov_thr = -1.;
 };
 
@@ -17,8 +19,9 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
 
     auto cli = (tooling::BaseCfg(cfg), (
             (option("--max-length") & integer("value", cfg.max_length)) % "tip length threshold (default: 10Kb)",
+            (option("--min-unambig-length") & integer("value", cfg.min_unambig_length)) % "minimal length of unambiguous region flanking the tip (default: 0 -- disabled)",
             (option("--read-cnt-file") & value("value", cfg.read_cnt_file)) % "file with read counts",
-            (option("--max-read-cnt") & integer("value", cfg.max_read_cnt)) % "max read count (default: 0)",
+            (option("--max-read-cnt") & integer("value", cfg.max_read_cnt)) % "max read count (default -- disabled)",
             (option("--cov-thr") & number("value", cfg.cov_thr)) % "coverage upper bound (exclusive, default: -1. -- disabled)"
                 //option("--use-cov-ratios").set(cfg.use_cov_ratios) % "enable procedures based on unitig coverage ratios (default: false)",
     ) % "algorithm settings");
@@ -30,7 +33,7 @@ static void process_cmdline(int argc, char **argv, cmd_cfg &cfg) {
         exit(1);
     }
 
-    if (cfg.max_read_cnt > 0 && cfg.read_cnt_file.empty()) {
+    if (cfg.max_read_cnt < uint32_t(-1) && cfg.read_cnt_file.empty()) {
         std::cerr << "Non-trivial threshold on read counts requires read-cnt-file to be provided" << std::endl;
         exit(2);
     }
@@ -71,6 +74,12 @@ int main(int argc, char *argv[]) {
     if (cfg.cov_thr >= 0.)
         std::cout << "Only segments with coverage below " << cfg.cov_thr << " will be considered" << std::endl;
 
+    if (cfg.min_unambig_length > 0)
+        std::cout << "Segments with unambiguous path forward shorter " << cfg.min_unambig_length << " will NOT be considered" << std::endl;
+
+    if (cfg.max_read_cnt < uint32_t(-1))
+        std::cout << "Segments consisting of more than " << cfg.max_read_cnt << " backbone reads will NOT be considered" << std::endl;
+
 //if max_length == 0 check returns false
 //TODO improve to support multiple outgoing links
 //TODO introduce coverage threshold
@@ -85,6 +94,7 @@ int main(int argc, char *argv[]) {
         auto n = l.end;
         assert(g.incoming_link_cnt(n) > 0);
         if (g.incoming_link_cnt(n) == 1)
+            //Shouldn't happen in compacted graphs
             return false;
 
         if (g.segment_length(v) >= cfg.max_length + l.start_overlap) {
@@ -95,10 +105,18 @@ int main(int argc, char *argv[]) {
             return false;
         }
 
-        if (!cfg.read_cnt_file.empty()) {
+        if (!cfg.read_cnt_file.empty() && cfg.max_read_cnt < uint32_t(-1)) {
             uint32_t read_cnt = utils::get(*read_cnt_ptr, g.segment_name(v));
             if (read_cnt > cfg.max_read_cnt) {
-                DEBUG("Segment " << g.str(v) << " consisting of too many reads: " << read_cnt);
+                DEBUG("Segment " << g.str(v) << " consisting of too many backbone reads: " << read_cnt);
+                return false;
+            }
+        }
+
+        if (cfg.min_unambig_length > 0) {
+            auto unambig_length = g.total_length(UnambiguousPathForward(g, n));
+            if (unambig_length < cfg.min_unambig_length) {
+                DEBUG("Unambiguous path forward from " << g.str(v) << " starting with " << g.str(n) << " was too short: " << unambig_length << "bp");
                 return false;
             }
         }
