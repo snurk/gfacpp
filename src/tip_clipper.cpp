@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 
     size_t ndel = 0;
 
-    std::cout << "Searching for tips with (adjusted for overlap size) length below " << cfg.max_length << std::endl;
+    std::cout << "Searching for tips with length below " << cfg.max_length << std::endl;
 
     if (cfg.cov_thr >= 0.)
         std::cout << "Only segments with coverage below " << cfg.cov_thr << " will be considered" << std::endl;
@@ -97,11 +97,10 @@ int main(int argc, char *argv[]) {
             //Shouldn't happen in compacted graphs
             return false;
 
-        if (g.segment_length(v) >= cfg.max_length + l.start_overlap) {
+        if (g.segment_length(v) > cfg.max_length) { //+ l.start_overlap) {
             DEBUG("Length of segment " << g.str(v) << " " <<
-                    g.segment_length(v) << "bp (adjusted for overlap size " <<
-                    l.start_overlap << "bp) exceeded tip length threshold of " <<
-                    cfg.max_length << "bp");
+                    g.segment_length(v) << "bp " << //(adjusted for overlap size " << l.start_overlap << "bp)" <<
+                    " exceeded tip length threshold of " << cfg.max_length << "bp");
             return false;
         }
 
