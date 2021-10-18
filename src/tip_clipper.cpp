@@ -92,9 +92,14 @@ int main(int argc, char *argv[]) {
 
         auto l = *g.outgoing_begin(v);
         auto n = l.end;
+
+        //checking loop
+        if (n == v)
+            return false;
+
         assert(g.incoming_link_cnt(n) > 0);
+        //Shouldn't happen in compacted graphs
         if (g.incoming_link_cnt(n) == 1)
-            //Shouldn't happen in compacted graphs
             return false;
 
         if (g.segment_length(v) > cfg.max_length) { //+ l.start_overlap) {
