@@ -14,7 +14,7 @@ static void process_cmdline(int argc, char **argv,
     cfg.compact = true;
 
     if (!result) {
-        std::cerr << "Graph normalizer & compactifier (contrary to doc '--compact' always enabled)" << std::endl;
+        std::cerr << "Graph normalizer & compactifier (contrary to doc '--compact' will always be enforced)" << std::endl;
         std::cerr << make_man_page(cli, argv[0]);
         exit(1);
     }
