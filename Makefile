@@ -30,3 +30,4 @@ $(ODIR)/%:$(ODIR)/%.o $(ODIR)/wrapper.o $(ODIR)/libgfa1.a
 clean:
 	rm -rf $(ODIR)/*
 	rm -f gfatools/libgfa1.a
+	make -C gfatools clean
